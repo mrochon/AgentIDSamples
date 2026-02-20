@@ -176,7 +176,7 @@ Authorization: Bearer {{login.response.body.access_token}}
 
 # Use portal to assign "Agent configurer" role to the user, which allows the user to configure agent settings in the portal. This role cannot be assigned via Graph API as it is a user role and not an application role.
 
-### --------------------------------------------------------------------------
+### =================================================================================
 # @name getTokenForUser
 POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/devicecode
 Content-Type: application/x-www-form-urlencoded
@@ -190,7 +190,10 @@ Content-Type: application/x-www-form-urlencoded
 
 client_id={{$dotenv PUBLIC_CLIENT_ID}}&grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code={{getTokenForUser.response.body.device_code}}
 
-### -------------------------------------------------------------------------
+### =================================================================================
+
+
+
 # @name listAgents
 GET https://graph.microsoft.com/beta/servicePrincipals/microsoft.graph.agentIdentity
 Authorization: Bearer {{login.response.body.access_token}}
