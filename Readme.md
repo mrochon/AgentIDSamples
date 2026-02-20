@@ -31,9 +31,11 @@ Application.Read.All
 Application.ReadWrite.All
 AppRoleAssignment.ReadWrite.All
 
+3. Register a public client application (make sure to Allow public client flows) to test user to agent role assignemnt. Give it delegated permission to call the blueprint:
+
 ### Delegated permissions
 User.Read
-Permission to call the agent (agent must define a scope)
+Permission to call the agent
 
 
-3. Update .env file with your user and the registered application details
+4. Update .env file with your user and the registered application details

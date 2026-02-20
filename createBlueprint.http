@@ -18,7 +18,7 @@ Authorization: Bearer {{login.response.body.access_token}}
 
 {
     "@odata.type": "Microsoft.Graph.AgentIdentityBlueprint",
-    "displayName": "My Agent Identity Blueprint",
+    "displayName": "My Agent Identity Blueprint V2",
     "sponsors@odata.bind": [
         "https://graph.microsoft.com/v1.0/users/{{$dotenv USER_OBJECT_ID}}",
     ],
@@ -69,7 +69,7 @@ GET https://graph.microsoft.com/beta/applications/microsoft.graph.agentIdentityB
 Authorization: Bearer {{login.response.body.access_token}}
 
 ###
-# Needs Application (not Blueprint) permissions! Still not working
+# SKIP!!! Needs Application (not Blueprint) permissions! Still not working
 # @name updateBlueprintAddPermission
 PATCH https://graph.microsoft.com/beta/applications/{{createBlueprint.response.body.id}}
 OData-Version: 4.0
@@ -150,7 +150,7 @@ Content-Type: application/json
 Authorization: Bearer {{blueprintLogin.response.body.access_token}}
 
 {
-  "displayName": "My Agent Identity",
+  "displayName": "My Agent Identity V2",
   "agentIdentityBlueprintId": "{{createBlueprint.response.body.appId}}",
   "sponsors@odata.bind": [
     "https://graph.microsoft.com/v1.0/users/{{$dotenv USER_OBJECT_ID}}"
@@ -174,14 +174,23 @@ Authorization: Bearer {{login.response.body.access_token}}
   "appRoleId": "{{createBlueprint.response.body.appRoles[0].id}}"
 }
 
-###
+# Use portal to assign "Agent configurer" role to the user, which allows the user to configure agent settings in the portal. This role cannot be assigned via Graph API as it is a user role and not an application role.
+
+### --------------------------------------------------------------------------
 # @name getTokenForUser
 POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/devicecode
 Content-Type: application/x-www-form-urlencoded
 
-client_id={{$dotenv CLIENT_ID}}&scope=api://{{createBlueprint.response.body.id}}/.default
-###
+client_id={{$dotenv PUBLIC_CLIENT_ID}}&scope=api://{{createBlueprint.response.body.id}}/.default
 
+###
+# @name getUserTokenResponse
+POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id={{$dotenv PUBLIC_CLIENT_ID}}&grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code={{getTokenForUser.response.body.device_code}}
+
+### -------------------------------------------------------------------------
 # @name listAgents
 GET https://graph.microsoft.com/beta/servicePrincipals/microsoft.graph.agentIdentity
 Authorization: Bearer {{login.response.body.access_token}}
