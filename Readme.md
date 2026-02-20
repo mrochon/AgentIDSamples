@@ -14,6 +14,8 @@ they should be used:
 
 ## Setup
 
+1. Install REST extension to support executing individual http calls
+
 1. Register an application in Entra with the following permissions (to cover all REST calls included. In practice, you may have different applications operating on the agent ids, each with own permissions).
 
 ### Application permissions
@@ -34,4 +36,4 @@ User.Read
 Permission to call the agent (agent must define a scope)
 
 
-2. Update .env file with your user and the registered application details
+3. Update .env file with your user and the registered application details
