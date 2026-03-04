@@ -1,0 +1,79 @@
+# @name login
+POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id={{$dotenv CLIENT_ID}}&client_secret={{$dotenv CLIENT_SECRET}}&scope=https://graph.microsoft.com/.default&grant_type=client_credentials
+
+###
+# @name listBlueprints
+GET https://graph.microsoft.com/beta/applications/microsoft.graph.agentIdentityBlueprint
+Authorization: Bearer {{login.response.body.access_token}}
+
+
+###====================== CREDENTIALS ===========================================================
+# Create credentials for this app. Needs Application.ReadWrite.OwnedBy
+# Recommended: use MI as federated credetial: https://github.com/MicrosoftDocs/entra-docs/blob/main/docs/agent-id/identity-platform/create-blueprint.md#microsoft-graph-api-2
+# use {{createBlueprintCredential.response.body.secretText}} to reference the created secret
+# To reference the created secret use {{createBlueprintCredential.response.body.secretText}}. To reference the secret's id (keyId) use {{createBlueprintCredential.response.body.keyId}}. The keyId is needed for secret rotation (removing old secrets).
+# @name createBlueprintCredential
+POST https://graph.microsoft.com/beta/applications/{{listBlueprints.response.body.value[1].id}}/addPassword
+OData-Version: 4.0
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+{
+    "displayName": "my-secret",
+    "endDateTime": "2299-12-31T23:59:59Z"
+}
+
+###
+
+# @name listBlueprintSecretKeys
+GET https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[1].id}}?$select=id,displayName,passwordCredentials
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+###
+# @name removePassword
+POST https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[1].id}}/removePassword
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+{
+  "keyId": "{{listBlueprintSecretKeys.response.body.passwordCredentials[0].keyId}}"
+}
+
+###==========================================================================================
+# https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/autonomous-agent-request-tokens?tabs=Microsoft-graph-api
+
+###
+# @name listAgents
+GET https://graph.microsoft.com/beta/servicePrincipals/microsoft.graph.agentIdentity?$filter=agentIdentityBlueprintId eq '{{listBlueprints.response.body.value[1].id}}'
+Authorization: Bearer {{login.response.body.access_token}}
+
+###
+
+# @name requestBlueprintToken
+POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id={{listBlueprints.response.body.value[1].appId}}
+&scope=api://AzureADTokenExchange/.default
+&grant_type=client_credentials
+&client_secret={{createBlueprintCredential.response.body.secretText}}
+&fmi_path={{listAgents.response.body.value[0].agentAppId}}
+
+###
+# @name requestAgentIdentityToken
+POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id={{listAgents.response.body.value[0].agentAppId}}
+&scope=https://graph.microsoft.com/.default
+&grant_type=client_credentials
+&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer
+&client_assertion={{requestBlueprintToken.response.body.access_token}}
+
+# returns: "AADSTS70025: The client '93fa987b-0955-40f6-bf04-78f620dfd9a3'(My Agent Identity Blueprint V2) 
+# has no configured federated identity credentials. Trace ID: 36f1f6ea-c6e6-49ff-98f8-028a41282c00 Correlation ID: 2b605c39-2da3-4578-9525-24b35ae39c17 Timestamp: 2026-03-04 00:15:36Z"
+

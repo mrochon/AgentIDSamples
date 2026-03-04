@@ -2,6 +2,7 @@
 # Based on https://learn.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-create-agent-identity-blueprint?tabs=cli2%2Cgraph-explorer&pivots=graph-explorer
 # App must have AgentIdentityBlueprint.Create app permission. The app must be consented by a tenant admin. The app must be owned by the user creating the blueprint or the user must be a sponsor of the blueprint.
 
+### 
 # @name login
 POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
 Content-Type: application/x-www-form-urlencoded
@@ -58,15 +59,36 @@ Authorization: Bearer {{login.response.body.access_token}}
                 "userConsentDescription": "Allow this app to call the agent on your behalf."
             }
         ]
-    }    
+    }       
 }
 
-### Consider adding inheritableScopes to the blueprint, which allows the blueprint to inherit app roles from other blueprints. This is useful for modular design of blueprints. For example, you can have a base blueprint with common app roles and then have specific blueprints for different scenarios that inherit from the base blueprint.
 ###
+# Update with Graph User.Read and (app) Mal.Send role
+# @name updateBlueprint
+# PATCH https://graph.microsoft.com/beta/applications/93fa987b-0955-40f6-bf04-78f620dfd9a3
+# OData-Version: 4.0
+# Content-Type: application/json
+# Authorization: Bearer {{login.response.body.access_token}}
 
-# @name listBlueprints
-GET https://graph.microsoft.com/beta/applications/microsoft.graph.agentIdentityBlueprint
-Authorization: Bearer {{login.response.body.access_token}}
+# {
+# 	"requiredResourceAccess": [
+# 		{
+# 			"resourceAppId": "00000003-0000-0000-c000-000000000000",
+# 			"resourceAccess": [
+# 				{
+# 					"id": "e1fe6dd8-ba31-4d61-89e7-88639da4683d",
+# 					"type": "Scope"
+# 				},
+# 				{
+# 					"id": "b633e1c5-b582-4048-a93e-9f11b44c7e96",
+# 					"type": "Role"
+# 				}
+# 			]
+# 		}
+# 	]
+# }    
+
+### Consider adding inheritableScopes to the blueprint, which allows the blueprint to inherit app roles from other blueprints. This is useful for modular design of blueprints. For example, you can have a base blueprint with common app roles and then have specific blueprints for different scenarios that inherit from the base blueprint.
 
 ###
 # SKIP!!! Needs Application (not Blueprint) permissions! Still not working
@@ -105,7 +127,7 @@ Authorization: Bearer {{login.response.body.access_token}}
     "appId": "{{createBlueprint.response.body.appId}}"
 }
 
-###
+###====================== CREDENTIALS ===========================================================
 # Create credentials for this app. Needs Application.ReadWrite.OwnedBy
 # Recommended: use MI as federated credetial: https://github.com/MicrosoftDocs/entra-docs/blob/main/docs/agent-id/identity-platform/create-blueprint.md#microsoft-graph-api-2
 # use {{createBlueprintCredential.response.body.secretText}} to reference the created secret
@@ -121,6 +143,16 @@ Authorization: Bearer {{login.response.body.access_token}}
 }
 
 ###
+# @name removePassword
+POST https://graph.microsoft.com/v1.0/applications/{{createBlueprint.response.body.appId}}/removePassword
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+{
+  "keyId": "{{createBlueprintCredential.response.body.keyId}}"
+}
+
+### ====================================== applicationUri is required for the blueprint to work, even though the documentation does not mention this requirement. The applicationUri can be any unique URI, it does not have to be a real URI. It is recommended to use a URI that is related to the appId for easier identification, for example: "api://{appId}".
 # @name assignApplicationUri
 PATCH https://graph.microsoft.com/beta/applications/{{createBlueprint.response.body.id}}/microsoft.graph.agentIdentityBlueprint
 OData-Version: 4.0
@@ -133,7 +165,7 @@ Authorization: Bearer {{login.response.body.access_token}}
     ]
 }
 
-###
+### ===================================== Create an agent from the blueprint. The agent will be created with the same app roles and permissions as defined in the blueprint. The agent will also be assigned to the same sponsors as the blueprint. The agent will have a service principal created for it, which can be used to assign additional permissions to the agent if needed.
 # Get token as Blueprint app
 # @name blueprintLogin
 POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
@@ -192,8 +224,17 @@ client_id={{$dotenv PUBLIC_CLIENT_ID}}&grant_type=urn:ietf:params:oauth:grant-ty
 
 ### =================================================================================
 
+###
+# @name listBlueprints
+GET https://graph.microsoft.com/beta/applications/microsoft.graph.agentIdentityBlueprint
+Authorization: Bearer {{login.response.body.access_token}}
 
+###
+# @name listBlueprintSPs
+GET https://graph.microsoft.com/beta/serviceprincipals/graph.agentIdentityBlueprintPrincipal
+Authorization: Bearer {{login.response.body.access_token}}
 
+###
 # @name listAgents
 GET https://graph.microsoft.com/beta/servicePrincipals/microsoft.graph.agentIdentity
 Authorization: Bearer {{login.response.body.access_token}}
@@ -212,4 +253,19 @@ Authorization: Bearer {{login.response.body.access_token}}
 
 ### Blueprint
 DELETE https://graph.microsoft.com/beta/applications/ba41860c-abd6-455a-8232-ee8da68e777f/microsoft.graph.agentIdentityBlueprint
+Authorization: Bearer {{login.response.body.access_token}}
+
+### -------------------------------------------------------------------------------
+### Reporting
+
+###
+# @name listAgentInstances
+GET https://graph.microsoft.com/beta//agentRegistry/agentInstances
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+###
+# @name listManifests
+GET https://graph.microsoft.com/beta/GET /agentRegistry/agentInstances/{agentInstanceId}/agentCardManifest
+Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
