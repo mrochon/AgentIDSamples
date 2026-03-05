@@ -45,14 +45,13 @@ Authorization: Bearer {{login.response.body.access_token}}
 
 ###==========================================================================================
 # https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/autonomous-agent-request-tokens?tabs=Microsoft-graph-api
-
+# https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/agent-autonomous-app-oauth-flow#protocol-steps
 ###
 # @name listAgents
 GET https://graph.microsoft.com/beta/servicePrincipals/microsoft.graph.agentIdentity?$filter=agentIdentityBlueprintId eq '{{listBlueprints.response.body.value[1].id}}'
 Authorization: Bearer {{login.response.body.access_token}}
 
 ###
-
 # @name requestBlueprintToken
 POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
 Content-Type: application/x-www-form-urlencoded
@@ -77,3 +76,73 @@ client_id={{listAgents.response.body.value[0].agentAppId}}
 # returns: "AADSTS70025: The client '93fa987b-0955-40f6-bf04-78f620dfd9a3'(My Agent Identity Blueprint V2) 
 # has no configured federated identity credentials. Trace ID: 36f1f6ea-c6e6-49ff-98f8-028a41282c00 Correlation ID: 2b605c39-2da3-4578-9525-24b35ae39c17 Timestamp: 2026-03-04 00:15:36Z"
 
+###
+# @name listAgents
+GET https://graph.microsoft.com/beta/servicePrincipals/microsoft.graph.agentIdentity
+Authorization: Bearer {{login.response.body.access_token}}
+
+###
+# See https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/autonomous-agent-request-agent-user-tokens?tabs=rest#create-an-agent-user
+# Requires: user.ReadWrite.All; AgentIdUser.ReadWrite.IdentityParentedBy was not sufficient, probably needs adding to blueprint?
+# @name createAgentUser
+POST https://graph.microsoft.com/beta/users
+OData-Version: 4.0
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+{
+  "@odata.type": "microsoft.graph.agentUser",
+  "displayName": "New Agent User",
+  "userPrincipalName": "agentuserupn@{{$dotenv TENANT_NAME}}",
+  "identityParentId": "{{listAgents.response.body.value[3].id}}",
+  "mailNickname": "agentuserupn",
+  "accountEnabled": true
+}
+
+###
+# @name getGraphSP
+GET https://graph.microsoft.com/v1.0/servicePrincipals(appId = '00000003-0000-0000-c000-000000000000')
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+###
+# Requires: DelegatedPermissionGrant.ReadWrite.All
+# @name giveUserConsentedPermissions
+POST https://graph.microsoft.com/v1.0/oauth2PermissionGrants
+Authorization: Bearer {{login.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "clientId": "{{listAgents.response.body.value[3].id}}",
+  "consentType": "Principal",
+  "principalId": "{{createAgentUser.response.body.id}}",
+  "resourceId": "{{getGraphSP.response.body.id}}",
+  "scope": "Mail.Read"
+}
+
+#============================== Get agent user token ================================================================
+# https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/autonomous-agent-request-agent-user-tokens?tabs=rest#request-agent-user-token
+###
+# Get token as Blueprint app
+# @name blueprintLogin
+POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id={{listBlueprints.response.body.value[1].appId}}&client_secret={{createBlueprintCredential.response.body.secretText}}&scope=https://graph.microsoft.com/.default&grant_type=client_credentials
+
+###
+# @name getAgentIdentityToken
+
+
+###
+# @name getAgentUserToken
+POST https://login.microsoftonline.com/<my-test-tenant>/oauth2/v2.0/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id=<agent-identity-id>
+&scope=https://graph.microsoft.com/.default
+&grant_type=user_fic
+&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer
+&client_assertion=<agent-blueprint-token>
+&user_id=<agent-user-object-id>
+&user_federated_identity_credential=<agent-identity-token>
