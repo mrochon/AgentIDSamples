@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Managed Identity Token Viewer</title>
+    <style>
+      :root {
+        --bg: #f7f3ea;
+        --fg: #2b2b2b;
+        --accent: #2a6b5f;
+        --panel: #ffffff;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Georgia", "Times New Roman", serif;
+        background: radial-gradient(circle at 20% 20%, #ffffff, var(--bg));
+        color: var(--fg);
+      }
+
+      .wrap {
+        max-width: 900px;
+        margin: 48px auto;
+        padding: 24px;
+      }
+
+      h1 {
+        font-size: 32px;
+        margin: 0 0 16px;
+      }
+
+      button {
+        background: var(--accent);
+        color: #fff;
+        border: 0;
+        padding: 12px 20px;
+        border-radius: 6px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin-top: 20px;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 200px;
+        resize: vertical;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid #d6d1c8;
+        background: var(--panel);
+        font-family: "Courier New", monospace;
+      }
+
+      .error-banner {
+        display: none;
+        margin-top: 16px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #fdf2f2;
+        border: 1px solid #e8b4b4;
+        color: #8b1a1a;
+        font-family: "Courier New", monospace;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      @media (min-width: 800px) {
+        .grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Managed Identity Token Viewer</h1>
+      <button id="getToken">Get Microsoft Graph Token</button>
+      <div id="errorBanner" class="error-banner"></div>
+      <div class="grid">
+        <textarea id="tokenText" placeholder="Token appears here" readonly></textarea>
+        <textarea id="decodedText" placeholder="Decoded token body appears here" readonly></textarea>
+      </div>
+    </div>
+
+    <script>
+      const button = document.getElementById("getToken");
+      const tokenText = document.getElementById("tokenText");
+      const decodedText = document.getElementById("decodedText");
+
+      const errorBanner = document.getElementById("errorBanner");
+
+      function showError(data) {
+        const d = data.details || {};
+        const lines = [];
+        if (data.error) lines.push("Error: " + data.error);
+        if (d.message)    lines.push("Message: " + d.message);
+        if (d.name)       lines.push("Name: " + d.name);
+        if (d.statusCode) lines.push("HTTP status: " + d.statusCode);
+        if (d.errorCode)  lines.push("Error code: " + d.errorCode);
+        if (d.stack)      lines.push("\nStack trace:\n" + d.stack);
+        errorBanner.textContent = lines.join("\n");
+        errorBanner.style.display = "block";
+      }
+
+      button.addEventListener("click", async () => {
+        tokenText.value = "Requesting token...";
+        decodedText.value = "";
+        errorBanner.style.display = "none";
+        errorBanner.textContent = "";
+
+        try {
+          const response = await fetch("/api/token");
+          const data = await response.json();
+
+          if (!response.ok) {
+            tokenText.value = "";
+            decodedText.value = "";
+            showError(data);
+            return;
+          }
+
+          tokenText.value = data.token;
+          decodedText.value = JSON.stringify(data.decoded, null, 2);
+        } catch (err) {
+          tokenText.value = "";
+          decodedText.value = "";
+          showError({ error: String(err) });
+        }
+      });
+    </script>
+  </body>
+</html>

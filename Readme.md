@@ -40,6 +40,40 @@ Open the *acquireToken.http* file and use the following named requests:
 - *requestBlueprintToken* to get a blueprint token
 *requestAgentIdentityToken* to request an autonomous agent token - this seems (like described in the docs)[https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/autonomous-agent-request-tokens?tabs=Microsoft-graph-api#request-a-token-for-the-agent-identity-blueprint] yet returns an error that the agent does not have a federated credential. **Issue is then what IdP** to use locally here to provide a federated credential.
 
+## Operation
+
+### Run locally
+
+1. Install dependencies:
+
+	npm install
+
+2. Start the server:
+
+	npm start
+
+3. Browse to http://localhost:3000.
+
+### Deploy with Bicep
+
+The template creates an App Service plan, a Web App, and a user-assigned managed identity.
+
+Example deployment:
+
+az deployment group create \
+  --resource-group <rg> \
+  --template-file main.bicep
+
+After deployment, assign Microsoft Graph API permissions to the managed identity in Entra ID if needed, then browse to the Web App URL output.
+
+### Deploy with script
+
+From the Operation folder:
+
+powershell -ExecutionPolicy Bypass -File .\deploy.ps1 -ResourceGroup <rg> -AppName <appName>
+
+The script installs production dependencies, packages the app, and deploys using az webapp deploy with run-from-package settings to avoid build loops.
+
 
 
 ## Application permissions
