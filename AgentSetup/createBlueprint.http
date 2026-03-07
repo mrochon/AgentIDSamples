@@ -152,6 +152,7 @@ Authorization: Bearer {{login.response.body.access_token}}
   "keyId": "{{createBlueprintCredential.response.body.keyId}}"
 }
 
+
 ### ====================================== applicationUri is required for the blueprint to work, even though the documentation does not mention this requirement. The applicationUri can be any unique URI, it does not have to be a real URI. It is recommended to use a URI that is related to the appId for easier identification, for example: "api://{appId}".
 # @name assignApplicationUri
 PATCH https://graph.microsoft.com/beta/applications/{{createBlueprint.response.body.id}}/microsoft.graph.agentIdentityBlueprint

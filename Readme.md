@@ -2,81 +2,16 @@
 
 ## Description
 
-Playground for experimenting and demonstrating Entra Agent ID related APIs.
+Playground for experimenting and demonstrating Entra Agent ID related APIs. Roughly based on this [documentation](https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/autonomous-agent-request-tokens?tabs=Microsoft-graph-api) (see below for differences).
 
-U to execute various Entra Agent ID related http calls (create blueprint, agent, acquire token)
+It consists of a set of http requests to operate on various Agent ID objects (create blueprint, credentials, list agents) and a Node.js web app which needs to be deployed to Azure Web Apps. Agent ID relies on use of Federated Credentials and Azure deployment is a way to support satisfy that requirement through use of Managed Identities.
 
-## Prerequisites
+## Setup
 
 1. Install VSCode with [REST extension](https://marketplace.visualstudio.com/items?itemName=humao.rest-client).
 
-1. Register an application in your Entra test tenant and copy its properties to .env (tenant id, app id, secret). Grant it Microsoft Graph AgentIdentityBlueprint application permissions as well as Application.ReadWrite.All and AppRoleAssignment.ReadWrite.All permissions. This will be the client app used to acquire tokens to call a variety of MS Graph APIs.
+1. Register an application in your Entra test tenant and copy its properties to .env (tenant id, app id, secret). Grant it Microsoft Graph permissions (some of them are not required - they are used in optional operations):
 
-2. Copy .env.sample to .env and update it with the app registration details.
-
-## Create an Agent
-
-Open the craeteBlueprint.http file.use the following http cals:
-
-- *login* to acquire application token
-- *createBlueprint* to create a new agent blueprint
-- *createBlueprintServicePrincipal* to create a new Service Principal
-- *updateBlueprintAddPermission* to provide permission for creating delegated agent tokens (on behalf of a user)
-- *createBlueprintCredential* to create a new secret for the blueprint 
-- *assignApplicationUri* to assign a valid app Uri to the blueprint
-- *blueprintLogin* to acquire a blueprint token needed for the subsequent operation
-- *createAgent* to create an agent from this blueprint
-
-The other http requests in this file are for cleanup and reporting.
-
-## Acquire token
-
-Open the *acquireToken.http* file and use the following named requests:
-
-- *login* to acquire application token
-- *listBlueprints* to list existing blueprints. Response data is used in subsequent calls to reference the appropriate blueprint id.
-- use *listBlueprintCredentials, *removePassword* and &createBlueprintCredential* to delete old and create a new secret for the blueprint. That way you do not save the secret after it is created but can reference it in same session.
-- *listAgents* to find the agent you will use in subsequent calls
-- *requestBlueprintToken* to get a blueprint token
-*requestAgentIdentityToken* to request an autonomous agent token - this seems (like described in the docs)[https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/autonomous-agent-request-tokens?tabs=Microsoft-graph-api#request-a-token-for-the-agent-identity-blueprint] yet returns an error that the agent does not have a federated credential. **Issue is then what IdP** to use locally here to provide a federated credential.
-
-## Operation
-
-### Run locally
-
-1. Install dependencies:
-
-	npm install
-
-2. Start the server:
-
-	npm start
-
-3. Browse to http://localhost:3000.
-
-### Deploy with Bicep
-
-The template creates an App Service plan, a Web App, and a user-assigned managed identity.
-
-Example deployment:
-
-az deployment group create \
-  --resource-group <rg> \
-  --template-file main.bicep
-
-After deployment, assign Microsoft Graph API permissions to the managed identity in Entra ID if needed, then browse to the Web App URL output.
-
-### Deploy with script
-
-From the Operation folder:
-
-powershell -ExecutionPolicy Bypass -File .\deploy.ps1 -ResourceGroup <rg> -AppName <appName>
-
-The script installs production dependencies, packages the app, and deploys using az webapp deploy with run-from-package settings to avoid build loops.
-
-
-
-## Application permissions
 - AgentIdentityBlueprint.AddRemoveCreds.All
 - AgentIdentityBlueprint.Create
 - AgentIdentityBlueprint.DeleteRestore.All
@@ -89,3 +24,43 @@ The script installs production dependencies, packages the app, and deploys using
 - Application.ReadWrite.All
 - AppRoleAssignment.ReadWrite.All
 
+3. Copy AgentSetup/.env.sample to .env and update it with the app registration details.
+
+4. Open the createBlueprint.http file and execute the following *Send* actions:
+
+- *login*
+- *createBlueprintServicePrincipal*
+- *createBlueprint*
+- *createAgent*
+
+
+5. Update Operation/main.bicep with values from your application registration.
+
+5. Deploy the Operations web app
+
+The template creates an App Service plan, a Web App, and a user-assigned managed identity.
+
+```
+az login --tenant <your tenant>
+az deployment group create \
+  --resource-group <rg> \
+  --template-file main.bicep
+.\deploy.ps1  -ResourceGroup <rg> -AppName <app name from bicep> 
+```
+
+7. Open the acquireToken.http file. Update the *createdFederatedCredential* json body by replacing the current value of the *subject* claim with the Object ID value of the managed identity created for the web app. Then execute the following *Send* actions:
+
+- *login*
+- *createFederatedIdentityCredential*
+
+8. Naviagte to the web app, update the FIC_PATH_GUID parameter with the object id of the Federated Credential created in step 4 above. Execute the two token acquisition steps in sequence. The 2nd step should return a token to to MS Graph.
+
+## How does it differ from the [documented](https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/autonomous-agent-request-tokens?tabs=Microsoft-graph-api) flow?
+
+1. Using GET to get the Managed Identity token rather than POST to the /token endpoint.
+
+2. In Managed Identity token acqusition, the code uses the *resource=* rather than *scope=* parameter. The latter may work as well - I was trying to get a token with uri rather than GUID audience claim as part of earlier attempts at fixing another problem.
+
+2. the value of the *fmi_path=* parameter is the *object id* of the Federated Identity Credential created in the above *createFederatedCredential* step rather than *agent-identity-client-id* as documented.
+
+4. In the 2nd step (Request agent identity), added *agent_id_id* parameter, **object id** of the agent created in the *createAgent* step above.

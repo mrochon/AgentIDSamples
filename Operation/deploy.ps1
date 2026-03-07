@@ -2,13 +2,25 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$ResourceGroup,
   [Parameter(Mandatory = $true)]
-  [string]$AppName
+  [string]$AppName,
+  [string]$BlueprintAppId        = "",
+  [string]$FicPathGuid           = "",
+  [string]$AgentIdentityObjectId = "",
+  [string]$TenantId              = ""
 )
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "Deploying infrastructure..."
-az deployment group create --resource-group $ResourceGroup --template-file main.bicep | Out-Null
+$deployParams = @(
+  "--resource-group", $ResourceGroup,
+  "--template-file", "main.bicep"
+)
+if ($BlueprintAppId)        { $deployParams += "--parameters"; $deployParams += "blueprintAppId=$BlueprintAppId" }
+if ($FicPathGuid)           { $deployParams += "--parameters"; $deployParams += "ficPathGuid=$FicPathGuid" }
+if ($AgentIdentityObjectId) { $deployParams += "--parameters"; $deployParams += "agentIdentityObjectId=$AgentIdentityObjectId" }
+if ($TenantId)              { $deployParams += "--parameters"; $deployParams += "tenantId=$TenantId" }
+az deployment group create @deployParams | Out-Null
 
 Write-Host "Creating deployment package..."
 $zipPath = Join-Path $PSScriptRoot "app.zip"

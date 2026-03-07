@@ -3,14 +3,22 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Managed Identity Token Viewer</title>
+    <title>Agent Identity Token Tester</title>
     <style>
       :root {
         --bg: #f7f3ea;
         --fg: #2b2b2b;
         --accent: #2a6b5f;
+        --accent2: #4a5a8f;
         --panel: #ffffff;
+        --code-bg: #f0f0e8;
+        --border: #d6d1c8;
+        --err-bg: #fdf2f2;
+        --err-border: #e8b4b4;
+        --err-fg: #8b1a1a;
       }
+
+      * { box-sizing: border-box; }
 
       body {
         margin: 0;
@@ -19,119 +27,296 @@
         color: var(--fg);
       }
 
-      .wrap {
-        max-width: 900px;
-        margin: 48px auto;
-        padding: 24px;
+      .wrap { max-width: 960px; margin: 36px auto; padding: 0 20px 40px; }
+
+      h1 { font-size: 28px; margin: 0 0 24px; }
+      h2 { font-size: 18px; margin: 0 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 24px;
       }
 
-      h1 {
-        font-size: 32px;
-        margin: 0 0 16px;
+      label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #555; }
+
+      input[type="text"] {
+        width: 100%;
+        padding: 7px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        font-family: "Courier New", monospace;
+        font-size: 13px;
+        margin-bottom: 10px;
+      }
+
+      .url-box {
+        background: var(--code-bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 10px 12px;
+        font-family: "Courier New", monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+        word-break: break-all;
+        margin-bottom: 12px;
+        min-height: 36px;
+        color: #333;
       }
 
       button {
-        background: var(--accent);
-        color: #fff;
         border: 0;
-        padding: 12px 20px;
+        padding: 10px 18px;
         border-radius: 6px;
-        font-size: 16px;
+        font-size: 15px;
         cursor: pointer;
+        color: #fff;
+        margin-right: 8px;
+        margin-bottom: 4px;
       }
+      .btn-step1 { background: var(--accent); }
+      .btn-step2 { background: var(--accent2); }
 
-      .grid {
+      .grid2 {
         display: grid;
         grid-template-columns: 1fr;
-        gap: 16px;
-        margin-top: 20px;
+        gap: 12px;
+        margin-top: 14px;
       }
+      @media (min-width: 700px) { .grid2 { grid-template-columns: 1fr 1fr; } }
 
       textarea {
         width: 100%;
-        min-height: 200px;
+        min-height: 160px;
         resize: vertical;
-        padding: 12px;
-        border-radius: 8px;
-        border: 1px solid #d6d1c8;
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
         background: var(--panel);
         font-family: "Courier New", monospace;
+        font-size: 12px;
       }
 
-      .error-banner {
+      .error-box {
         display: none;
-        margin-top: 16px;
-        padding: 12px 16px;
-        border-radius: 8px;
-        background: #fdf2f2;
-        border: 1px solid #e8b4b4;
-        color: #8b1a1a;
+        margin-top: 10px;
+        padding: 10px 14px;
+        border-radius: 6px;
+        background: var(--err-bg);
+        border: 1px solid var(--err-border);
+        color: var(--err-fg);
         font-family: "Courier New", monospace;
+        font-size: 12px;
         white-space: pre-wrap;
         word-break: break-word;
       }
 
-      @media (min-width: 800px) {
-        .grid {
-          grid-template-columns: 1fr 1fr;
-        }
-      }
+      .row2 { display: flex; gap: 12px; flex-wrap: wrap; }
+      .row2 > div { flex: 1 1 260px; }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <h1>Managed Identity Token Viewer</h1>
-      <button id="getToken">Get Microsoft Graph Token</button>
-      <div id="errorBanner" class="error-banner"></div>
-      <div class="grid">
-        <textarea id="tokenText" placeholder="Token appears here" readonly></textarea>
-        <textarea id="decodedText" placeholder="Decoded token body appears here" readonly></textarea>
+      <h1>Agent Identity Token Tester</h1>
+
+      <!-- Config -->
+      <div class="card">
+        <h2>Configuration</h2>
+        <div class="row2">
+          <div>
+            <label>Managed Identity ID <small style="font-weight:normal;opacity:.7">(AZURE_CLIENT_ID)</small></label>
+            <input id="managedIdentityId" type="text" placeholder="Injected from managed identity client ID" readonly style="opacity:.8;cursor:default" />
+            <label>BLUEPRINT_APP_ID</label>
+            <input id="blueprintAppId" type="text" placeholder="Client ID of the blueprint app" />
+            <label>FIC_PATH_GUID</label>
+            <input id="ficPathGuid" type="text" placeholder="fmi_path GUID" />
+          </div>
+          <div>
+            <label>AGENT_IDENTITY_OBJECT_ID</label>
+            <input id="agentIdentityObjId" type="text" placeholder="Object ID of the agent identity" />
+            <label>TENANT_ID</label>
+            <input id="tenantId" type="text" placeholder="Entra tenant ID" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="card">
+        <h2>Step 1 — Get Assertion Token (App Service MSI)</h2>
+        <label>Request URL</label>
+        <div id="step1Url" class="url-box">Resolving...</div>
+        <button class="btn-step1" id="btnStep1">Get Assertion Token</button>
+        <div id="step1Error" class="error-box"></div>
+        <div class="grid2">
+          <div>
+            <label>Raw token</label>
+            <textarea id="step1Token" readonly placeholder="Assertion token appears here"></textarea>
+          </div>
+          <div>
+            <label>Decoded token body</label>
+            <textarea id="step1Decoded" readonly placeholder="Decoded body appears here"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="card">
+        <h2>Step 2 — Exchange Assertion for Graph Token (Entra)</h2>
+        <label>POST URL</label>
+        <div id="step2Url" class="url-box">Resolving...</div>
+        <label>Request body</label>
+        <div id="step2Body" class="url-box">Waiting for Step 1...</div>
+        <button class="btn-step2" id="btnStep2">Get Graph Token</button>
+        <div id="step2Error" class="error-box"></div>
+        <div class="grid2">
+          <div>
+            <label>Raw token</label>
+            <textarea id="step2Token" readonly placeholder="Graph token appears here"></textarea>
+          </div>
+          <div>
+            <label>Decoded token body</label>
+            <textarea id="step2Decoded" readonly placeholder="Decoded body appears here"></textarea>
+          </div>
+        </div>
       </div>
     </div>
 
     <script>
-      const button = document.getElementById("getToken");
-      const tokenText = document.getElementById("tokenText");
-      const decodedText = document.getElementById("decodedText");
+      const $ = id => document.getElementById(id);
 
-      const errorBanner = document.getElementById("errorBanner");
+      const inManagedIdentityId  = $("managedIdentityId");
+      const inBlueprintAppId     = $("blueprintAppId");
+      const inFicPathGuid        = $("ficPathGuid");
+      const inAgentIdentityObjId = $("agentIdentityObjId");
+      const inTenantId           = $("tenantId");
 
-      function showError(data) {
+      let resolvedEndpoint = "";
+      let step1Assertion   = "";
+
+      function showError(boxId, data) {
+        const box = $(boxId);
         const d = data.details || {};
         const lines = [];
-        if (data.error) lines.push("Error: " + data.error);
-        if (d.message)    lines.push("Message: " + d.message);
-        if (d.name)       lines.push("Name: " + d.name);
+        if (data.error)   lines.push("Error: " + data.error);
+        if (d.message)    lines.push("Message: " + (typeof d.message === "object" ? JSON.stringify(d.message) : d.message));
         if (d.statusCode) lines.push("HTTP status: " + d.statusCode);
-        if (d.errorCode)  lines.push("Error code: " + d.errorCode);
-        if (d.stack)      lines.push("\nStack trace:\n" + d.stack);
-        errorBanner.textContent = lines.join("\n");
-        errorBanner.style.display = "block";
+        if (d.raw)        lines.push("\nRaw response:\n" + JSON.stringify(d.raw, null, 2));
+        if (d.stack)      lines.push("\nStack:\n" + d.stack);
+        box.textContent = lines.join("\n");
+        box.style.display = "block";
       }
 
-      button.addEventListener("click", async () => {
-        tokenText.value = "Requesting token...";
-        decodedText.value = "";
-        errorBanner.style.display = "none";
-        errorBanner.textContent = "";
+      function clearError(boxId) {
+        const b = $(boxId);
+        b.textContent = "";
+        b.style.display = "none";
+      }
+
+      function buildStep1Url() {
+        const mid = inManagedIdentityId.value.trim();
+        const fic = inFicPathGuid.value.trim();
+        if (!resolvedEndpoint) { $("step1Url").textContent = "Waiting for IDENTITY_ENDPOINT from server..."; return; }
+        if (!mid)              { $("step1Url").textContent = "Enter Managed Identity ID above."; return; }
+        const p = new URLSearchParams({
+          resource:      "api://AzureADTokenExchange",
+          client_id:     mid,
+          "api-version": "2019-08-01"
+        });
+        if (fic) p.set("fmi_path", fic);
+        $("step1Url").textContent = "GET " + resolvedEndpoint + "?" + p;
+      }
+
+      function buildStep2Preview() {
+        const tid = inTenantId.value.trim();
+        const bid = inBlueprintAppId.value.trim();
+        const aid = inAgentIdentityObjId.value.trim();
+        if (!tid || !bid) { $("step2Url").textContent = "Enter Tenant ID and BLUEPRINT_APP_ID above."; $("step2Body").textContent = ""; return; }
+        $("step2Url").textContent = "POST https://login.microsoftonline.com/" + tid + "/oauth2/v2.0/token";
+        const bodyLines = [
+          "grant_type=client_credentials",
+          "client_id=" + (bid || "<blueprintAppId>"),
+          "scope=https://graph.microsoft.com/.default",
+          "client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+          "client_assertion=" + (step1Assertion ? step1Assertion.substring(0, 40) + "..." : "<run Step 1 first>")
+        ];
+        if (aid) bodyLines.push("agent_identity_id=" + aid);
+        $("step2Body").textContent = bodyLines.join("\n");
+      }
+
+      [inManagedIdentityId, inBlueprintAppId, inFicPathGuid, inAgentIdentityObjId, inTenantId].forEach(el => {
+        el.addEventListener("input", () => { buildStep1Url(); buildStep2Preview(); });
+      });
+
+      fetch("/api/config")
+        .then(r => r.json())
+        .then(d => {
+          resolvedEndpoint           = d.endpoint;
+          inManagedIdentityId.value  = d.managedIdentityId;
+          inBlueprintAppId.value     = d.blueprintAppId;
+          inFicPathGuid.value        = d.ficPathGuid;
+          inAgentIdentityObjId.value = d.agentIdentityObjId;
+          inTenantId.value           = d.tenantId;
+          buildStep1Url();
+          buildStep2Preview();
+        })
+        .catch(() => { $("step1Url").textContent = "Failed to load config from server."; });
+
+      $("btnStep1").addEventListener("click", async () => {
+        clearError("step1Error");
+        $("step1Token").value   = "Requesting...";
+        $("step1Decoded").value = "";
+        step1Assertion = "";
+        buildStep2Preview();
 
         try {
-          const response = await fetch("/api/token");
-          const data = await response.json();
+          const p = new URLSearchParams({
+            managedIdentityId: inManagedIdentityId.value.trim(),
+            ficPathGuid:       inFicPathGuid.value.trim()
+          });
+          const r = await fetch("/api/step1?" + p);
+          const d = await r.json();
+          if (!r.ok) { $("step1Token").value = ""; showError("step1Error", d); return; }
+          $("step1Token").value   = d.token;
+          $("step1Decoded").value = JSON.stringify(d.decoded, null, 2);
+          step1Assertion          = d.token;
+          buildStep2Preview();
+        } catch (e) {
+          $("step1Token").value = "";
+          showError("step1Error", { error: String(e) });
+        }
+      });
 
-          if (!response.ok) {
-            tokenText.value = "";
-            decodedText.value = "";
-            showError(data);
-            return;
-          }
+      $("btnStep2").addEventListener("click", async () => {
+        clearError("step2Error");
+        $("step2Token").value   = "Requesting...";
+        $("step2Decoded").value = "";
 
-          tokenText.value = data.token;
-          decodedText.value = JSON.stringify(data.decoded, null, 2);
-        } catch (err) {
-          tokenText.value = "";
-          decodedText.value = "";
-          showError({ error: String(err) });
+        if (!step1Assertion) {
+          showError("step2Error", { error: "Run Step 1 first to obtain the assertion token." });
+          $("step2Token").value = "";
+          return;
+        }
+
+        try {
+          const r = await fetch("/api/step2", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tenantId:           inTenantId.value.trim(),
+              blueprintAppId:     inBlueprintAppId.value.trim(),
+              agentIdentityObjId: inAgentIdentityObjId.value.trim(),
+              assertion:          step1Assertion
+            })
+          });
+          const d = await r.json();
+          if (!r.ok) { $("step2Token").value = ""; showError("step2Error", d); return; }
+          $("step2Token").value   = d.token;
+          $("step2Decoded").value = JSON.stringify(d.decoded, null, 2);
+        } catch (e) {
+          $("step2Token").value = "";
+          showError("step2Error", { error: String(e) });
         }
       });
     </script>

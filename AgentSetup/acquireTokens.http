@@ -29,7 +29,7 @@ Authorization: Bearer {{login.response.body.access_token}}
 ###
 
 # @name listBlueprintSecretKeys
-GET https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[1].id}}?$select=id,displayName,passwordCredentials
+GET https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[1].id}}?$select=id,displayName,passwordCredentials,federatedIdentityCredentials
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
 
@@ -43,12 +43,54 @@ Authorization: Bearer {{login.response.body.access_token}}
   "keyId": "{{listBlueprintSecretKeys.response.body.passwordCredentials[0].keyId}}"
 }
 
+
+###
+# subject is the objectId of the managed identity
+# This link shows expected aud as 'api://AzureADTokenExchange/.default' but in practice it seems to be the appId of the blueprint app: 'fb60f99c-7a34-4190-8149-302f77469936'
+# Its possible that the only way to get the au to be the uri, is to request it from an Azure resource (e.g. VM) using the MI, rather than directly from the token endpoint using client credentials flow with a federated credential. This would be a bit unfortunate as it would require additional setup of an Azure resource with the MI, but it would be in line with the idea that the federated credential is really meant for workloads running on Azure that want to authenticate with Azure AD without needing to manage secrets.
+# https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/create-blueprint?tabs=microsoft-graph-api#configure-credentials-for-the-agent-identity-blueprint
+# Subject id=Managed Identity Object ID!!!
+# @name createFederatedCredential
+POST https://graph.microsoft.com/beta/applications/{{listBlueprints.response.body.value[1].id}}/federatedIdentityCredentials/
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+{
+    "name": "FIC03",
+    "issuer": "https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/v2.0",
+    "subject": "53b2c0cc-0779-4d4a-a64a-77af97686264",
+    "audiences": [
+        "api://AzureADTokenExchange"
+    ]
+}
+
+###
+# @name listFederatedIdentityCredentials
+GET https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[1].id}}/federatedIdentityCredentials
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+###
+# @name deleteFederatedIdentityCredential
+DELETE https://graph.microsoft.com/beta/applications/{{listBlueprints.response.body.value[1].id}}/federatedIdentityCredentials/{{listFederatedIdentityCredentials.response.body.value[0].id}} 
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+
+
 ###==========================================================================================
 # https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/autonomous-agent-request-tokens?tabs=Microsoft-graph-api
 # https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/agent-autonomous-app-oauth-flow#protocol-steps
 ###
 # @name listAgents
 GET https://graph.microsoft.com/beta/servicePrincipals/microsoft.graph.agentIdentity?$filter=agentIdentityBlueprintId eq '{{listBlueprints.response.body.value[1].id}}'
+Authorization: Bearer {{login.response.body.access_token}}
+
+###
+# @name deleteAgent
+DELETE https://graph.microsoft.com/beta/servicePrincipals/{{listAgents.response.body.value[0].id}}
+OData-Version: 4.0
+Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
 
 ###
@@ -63,6 +105,10 @@ client_id={{listBlueprints.response.body.value[1].appId}}
 &fmi_path={{listAgents.response.body.value[0].agentAppId}}
 
 ###
+# Returns invalid token format error, possibly because the token endpoint doesn't expect the fmi_path parameter in a client credentials flow. 
+# This might be an indication that the fmi_path parameter is only meant to be used when requesting a token from an Azure resource using the MI, 
+# rather than directly from the token endpoint using client credentials flow with a federated credential. This would be in line with the idea that 
+#the federated credential is really meant for workloads running on Azure that want to authenticate with Azure AD without needing to manage secrets.
 # @name requestAgentIdentityToken
 POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
 Content-Type: application/x-www-form-urlencoded
@@ -71,7 +117,7 @@ client_id={{listAgents.response.body.value[0].agentAppId}}
 &scope=https://graph.microsoft.com/.default
 &grant_type=client_credentials
 &client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer
-&client_assertion={{requestBlueprintToken.response.body.access_token}}
+&client_assertion="eyJ0eXAiOiJK..."
 
 # returns: "AADSTS70025: The client '93fa987b-0955-40f6-bf04-78f620dfd9a3'(My Agent Identity Blueprint V2) 
 # has no configured federated identity credentials. Trace ID: 36f1f6ea-c6e6-49ff-98f8-028a41282c00 Correlation ID: 2b605c39-2da3-4578-9525-24b35ae39c17 Timestamp: 2026-03-04 00:15:36Z"
