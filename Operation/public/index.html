@@ -78,6 +78,7 @@
       }
       .btn-step1 { background: var(--accent); }
       .btn-step2 { background: var(--accent2); }
+      .btn-step3 { background: #7a4a8f; }
 
       .grid2 {
         display: grid;
@@ -130,24 +131,26 @@
             <input id="managedIdentityId" type="text" placeholder="Injected from managed identity client ID" readonly style="opacity:.8;cursor:default" />
             <label>BLUEPRINT_APP_ID</label>
             <input id="blueprintAppId" type="text" placeholder="Client ID of the blueprint app" />
-            <label>FIC_PATH_GUID</label>
-            <input id="ficPathGuid" type="text" placeholder="fmi_path GUID" />
           </div>
           <div>
-            <label>AGENT_IDENTITY_OBJECT_ID</label>
-            <input id="agentIdentityObjId" type="text" placeholder="Object ID of the agent identity" />
             <label>TENANT_ID</label>
             <input id="tenantId" type="text" placeholder="Entra tenant ID" />
+            <label>Agent SP Id</label>
+            <input id="agentSpId" type="text" value="93413270-1aaa-4584-a6d2-8d29ac286e1e" placeholder="Service principal ID of the agent" />
+            <label>Agent App Id</label>
+            <input id="agentAppId" type="text" value="1eeb2aed-e2f8-4056-b780-70ce54b59c6a" placeholder="App (client) ID of the agent" />
+            <label>MI_OBJECT_ID <small style="font-weight:normal;opacity:.7">(Managed Identity Object Id)</small></label>
+            <input id="miObjectId" type="text" value="53b2c0cc-0779-4d4a-a64a-77af97686264" placeholder="Object ID of the managed identity" />
           </div>
         </div>
       </div>
 
       <!-- Step 1 -->
       <div class="card">
-        <h2>Step 1 — Get Assertion Token (App Service MSI)</h2>
+        <h2>Step 1 — Get MI token</h2>
         <label>Request URL</label>
         <div id="step1Url" class="url-box">Resolving...</div>
-        <button class="btn-step1" id="btnStep1">Get Assertion Token</button>
+        <button class="btn-step1" id="btnStep1">Get MI token</button>
         <div id="step1Error" class="error-box"></div>
         <div class="grid2">
           <div>
@@ -163,12 +166,12 @@
 
       <!-- Step 2 -->
       <div class="card">
-        <h2>Step 2 — Exchange Assertion for Graph Token (Entra)</h2>
+        <h2>Step 2 — Get Blueprint token</h2>
         <label>POST URL</label>
         <div id="step2Url" class="url-box">Resolving...</div>
         <label>Request body</label>
         <div id="step2Body" class="url-box">Waiting for Step 1...</div>
-        <button class="btn-step2" id="btnStep2">Get Graph Token</button>
+        <button class="btn-step2" id="btnStep2">Get Blueprint token</button>
         <div id="step2Error" class="error-box"></div>
         <div class="grid2">
           <div>
@@ -181,19 +184,41 @@
           </div>
         </div>
       </div>
+
+      <!-- Step 3 -->
+      <div class="card">
+        <h2>Step 3 — Acquire autonomous agent token</h2>
+        <label>POST URL</label>
+        <div id="step3Url" class="url-box">Resolving...</div>
+        <label>Request body</label>
+        <div id="step3Body" class="url-box">Waiting for Step 2...</div>
+        <button class="btn-step3" id="btnStep3">Get agent resource token</button>
+        <div id="step3Error" class="error-box"></div>
+        <div class="grid2">
+          <div>
+            <label>Raw token</label>
+            <textarea id="step3Token" readonly placeholder="Agent token appears here"></textarea>
+          </div>
+          <div>
+            <label>Decoded token body</label>
+            <textarea id="step3Decoded" readonly placeholder="Decoded body appears here"></textarea>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
       const $ = id => document.getElementById(id);
 
-      const inManagedIdentityId  = $("managedIdentityId");
-      const inBlueprintAppId     = $("blueprintAppId");
-      const inFicPathGuid        = $("ficPathGuid");
-      const inAgentIdentityObjId = $("agentIdentityObjId");
-      const inTenantId           = $("tenantId");
+      const inManagedIdentityId = $("managedIdentityId");
+      const inBlueprintAppId    = $("blueprintAppId");
+      const inTenantId          = $("tenantId");
+      const inAgentSpId         = $("agentSpId");
+      const inAgentAppId        = $("agentAppId");
 
-      let resolvedEndpoint = "";
-      let step1Assertion   = "";
+      let resolvedEndpoint    = "";
+      let step1Assertion      = "";
+      let step2BlueprintToken = "";
 
       function showError(boxId, data) {
         const box = $(boxId);
@@ -216,7 +241,6 @@
 
       function buildStep1Url() {
         const mid = inManagedIdentityId.value.trim();
-        const fic = inFicPathGuid.value.trim();
         if (!resolvedEndpoint) { $("step1Url").textContent = "Waiting for IDENTITY_ENDPOINT from server..."; return; }
         if (!mid)              { $("step1Url").textContent = "Enter Managed Identity ID above."; return; }
         const p = new URLSearchParams({
@@ -224,42 +248,40 @@
           client_id:     mid,
           "api-version": "2019-08-01"
         });
-        if (fic) p.set("fmi_path", fic);
         $("step1Url").textContent = "GET " + resolvedEndpoint + "?" + p;
       }
 
       function buildStep2Preview() {
         const tid = inTenantId.value.trim();
         const bid = inBlueprintAppId.value.trim();
-        const aid = inAgentIdentityObjId.value.trim();
+        const fmi = inAgentAppId.value.trim();
         if (!tid || !bid) { $("step2Url").textContent = "Enter Tenant ID and BLUEPRINT_APP_ID above."; $("step2Body").textContent = ""; return; }
         $("step2Url").textContent = "POST https://login.microsoftonline.com/" + tid + "/oauth2/v2.0/token";
         const bodyLines = [
           "grant_type=client_credentials",
           "client_id=" + (bid || "<blueprintAppId>"),
-          "scope=https://graph.microsoft.com/.default",
+          "scope=api://AzureADTokenExchange/.default",
           "client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-          "client_assertion=" + (step1Assertion ? step1Assertion.substring(0, 40) + "..." : "<run Step 1 first>")
+          "client_assertion=" + (step1Assertion ? step1Assertion.substring(0, 40) + "..." : "<run Step 1 first>"),
+          "fmi_path=" + (fmi || "<agentAppId>")
         ];
-        if (aid) bodyLines.push("agent_identity_id=" + aid);
         $("step2Body").textContent = bodyLines.join("\n");
       }
 
-      [inManagedIdentityId, inBlueprintAppId, inFicPathGuid, inAgentIdentityObjId, inTenantId].forEach(el => {
-        el.addEventListener("input", () => { buildStep1Url(); buildStep2Preview(); });
+      [inManagedIdentityId, inBlueprintAppId, inTenantId, inAgentSpId, inAgentAppId].forEach(el => {
+        el.addEventListener("input", () => { buildStep1Url(); buildStep2Preview(); buildStep3Preview(); });
       });
 
       fetch("/api/config")
         .then(r => r.json())
         .then(d => {
-          resolvedEndpoint           = d.endpoint;
-          inManagedIdentityId.value  = d.managedIdentityId;
-          inBlueprintAppId.value     = d.blueprintAppId;
-          inFicPathGuid.value        = d.ficPathGuid;
-          inAgentIdentityObjId.value = d.agentIdentityObjId;
-          inTenantId.value           = d.tenantId;
+          resolvedEndpoint          = d.endpoint;
+          inManagedIdentityId.value = d.managedIdentityId;
+          inBlueprintAppId.value    = d.blueprintAppId;
+          inTenantId.value          = d.tenantId;
           buildStep1Url();
           buildStep2Preview();
+          buildStep3Preview();
         })
         .catch(() => { $("step1Url").textContent = "Failed to load config from server."; });
 
@@ -267,13 +289,14 @@
         clearError("step1Error");
         $("step1Token").value   = "Requesting...";
         $("step1Decoded").value = "";
-        step1Assertion = "";
+        step1Assertion      = "";
+        step2BlueprintToken = "";
         buildStep2Preview();
+        buildStep3Preview();
 
         try {
           const p = new URLSearchParams({
-            managedIdentityId: inManagedIdentityId.value.trim(),
-            ficPathGuid:       inFicPathGuid.value.trim()
+            managedIdentityId: inManagedIdentityId.value.trim()
           });
           const r = await fetch("/api/step1?" + p);
           const d = await r.json();
@@ -292,6 +315,8 @@
         clearError("step2Error");
         $("step2Token").value   = "Requesting...";
         $("step2Decoded").value = "";
+        step2BlueprintToken = "";
+        buildStep3Preview();
 
         if (!step1Assertion) {
           showError("step2Error", { error: "Run Step 1 first to obtain the assertion token." });
@@ -304,19 +329,69 @@
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              tenantId:           inTenantId.value.trim(),
-              blueprintAppId:     inBlueprintAppId.value.trim(),
-              agentIdentityObjId: inAgentIdentityObjId.value.trim(),
-              assertion:          step1Assertion
+              tenantId:       inTenantId.value.trim(),
+              blueprintAppId: inBlueprintAppId.value.trim(),
+              agentAppId:     inAgentAppId.value.trim(),
+              assertion:      step1Assertion
             })
           });
           const d = await r.json();
           if (!r.ok) { $("step2Token").value = ""; showError("step2Error", d); return; }
           $("step2Token").value   = d.token;
           $("step2Decoded").value = JSON.stringify(d.decoded, null, 2);
+          step2BlueprintToken     = d.token;
+          buildStep3Preview();
         } catch (e) {
           $("step2Token").value = "";
           showError("step2Error", { error: String(e) });
+        }
+      });
+
+      function buildStep3Preview() {
+        const tid = inTenantId.value.trim();
+        const bid = inBlueprintAppId.value.trim();
+        const aid = inAgentAppId.value.trim();
+        if (!tid || !bid) { $("step3Url").textContent = "Enter Tenant ID and BLUEPRINT_APP_ID above."; $("step3Body").textContent = ""; return; }
+        $("step3Url").textContent = "POST https://login.microsoftonline.com/" + tid + "/oauth2/v2.0/token";
+        const bodyLines = [
+          "client_id=" + (aid || "<agentAppId>"),
+          "scope=https://graph.microsoft.com/.default",
+          "client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+          "client_assertion=" + (step2BlueprintToken ? step2BlueprintToken.substring(0, 40) + "..." : "<run Step 2 first>"),
+          "grant_type=client_credentials"
+        ];
+        $("step3Body").textContent = bodyLines.join("\n");
+      }
+
+      $("btnStep3").addEventListener("click", async () => {
+        clearError("step3Error");
+        $("step3Token").value   = "Requesting...";
+        $("step3Decoded").value = "";
+
+        if (!step2BlueprintToken) {
+          showError("step3Error", { error: "Run Step 2 first to obtain the blueprint token." });
+          $("step3Token").value = "";
+          return;
+        }
+
+        try {
+          const r = await fetch("/api/step3", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tenantId:       inTenantId.value.trim(),
+              blueprintAppId: inBlueprintAppId.value.trim(),
+              agentAppId:     inAgentAppId.value.trim(),
+              assertion:      step2BlueprintToken
+            })
+          });
+          const d = await r.json();
+          if (!r.ok) { $("step3Token").value = ""; showError("step3Error", d); return; }
+          $("step3Token").value   = d.token;
+          $("step3Decoded").value = JSON.stringify(d.decoded, null, 2);
+        } catch (e) {
+          $("step3Token").value = "";
+          showError("step3Error", { error: String(e) });
         }
       });
     </script>

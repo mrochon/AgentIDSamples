@@ -5,7 +5,7 @@ param(
   [string]$AppName,
   [string]$BlueprintAppId        = "",
   [string]$FicPathGuid           = "",
-  [string]$AgentIdentityObjectId = "",
+  [string]$AgentAppId = "",
   [string]$TenantId              = ""
 )
 
@@ -18,11 +18,11 @@ $deployParams = @(
 )
 if ($BlueprintAppId)        { $deployParams += "--parameters"; $deployParams += "blueprintAppId=$BlueprintAppId" }
 if ($FicPathGuid)           { $deployParams += "--parameters"; $deployParams += "ficPathGuid=$FicPathGuid" }
-if ($AgentIdentityObjectId) { $deployParams += "--parameters"; $deployParams += "agentIdentityObjectId=$AgentIdentityObjectId" }
+if ($AgentAppId) { $deployParams += "--parameters"; $deployParams += "agentAppId=$AgentAppId" }
 if ($TenantId)              { $deployParams += "--parameters"; $deployParams += "tenantId=$TenantId" }
 az deployment group create @deployParams | Out-Null
 
-Write-Host "Creating deployment package..."
+Write-Host "Creating deployment package (with dependencies)..."
 $zipPath = Join-Path $PSScriptRoot "app.zip"
 if (Test-Path $zipPath) {
   Remove-Item $zipPath -Force
@@ -48,6 +48,10 @@ try {
       Copy-Item -Path $_.FullName -Destination $dest -Force
     }
   }
+
+  Write-Host "Installing production dependencies..."
+  Push-Location $tempDir
+  try { npm install --omit=dev --silent } finally { Pop-Location }
 
   Compress-Archive -Path "$tempDir\*" -DestinationPath $zipPath -Force
 } finally {

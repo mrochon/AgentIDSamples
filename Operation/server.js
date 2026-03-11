@@ -66,12 +66,11 @@ function decodeJwt(token) {
 // Returns all config values so the UI can build and display request URLs
 app.get("/api/config", (_req, res) => {
   res.json({
-    endpoint:           process.env.IDENTITY_ENDPOINT        || "",
-    managedIdentityId:  process.env.AZURE_CLIENT_ID          || "",
-    blueprintAppId:     process.env.BLUEPRINT_APP_ID         || "",
-    ficPathGuid:        process.env.FIC_PATH_GUID            || "",
-    agentIdentityObjId: process.env.AGENT_IDENTITY_OBJECT_ID || "",
-    tenantId:           process.env.TENANT_ID                || ""
+    endpoint:          process.env.IDENTITY_ENDPOINT || "",
+    managedIdentityId: process.env.AZURE_CLIENT_ID   || "",
+    blueprintAppId:    process.env.BLUEPRINT_APP_ID  || "",
+    agentAppId:        process.env.AGENT_APP_ID       || "",
+    tenantId:          process.env.TENANT_ID         || ""
   });
 });
 
@@ -83,7 +82,6 @@ app.get("/api/step1", async (req, res) => {
     if (!endpoint) return res.status(500).json({ error: "IDENTITY_ENDPOINT not set. Ensure a managed identity is attached." });
 
     const managedIdentityId = req.query.managedIdentityId || process.env.AZURE_CLIENT_ID;
-    const ficPathGuid       = req.query.ficPathGuid       || process.env.FIC_PATH_GUID;
 
     if (!managedIdentityId) return res.status(400).json({ error: "managedIdentityId (AZURE_CLIENT_ID) is required." });
 
@@ -92,7 +90,6 @@ app.get("/api/step1", async (req, res) => {
       client_id:     managedIdentityId,
       "api-version": "2019-08-01"
     });
-    if (ficPathGuid) params.set("fmi_path", ficPathGuid);
 
     const url = `${endpoint}?${params}`;
     console.log("Step 1 GET:", url);
@@ -108,10 +105,10 @@ app.get("/api/step1", async (req, res) => {
   }
 });
 
-// Step 2 — POST assertion to Entra to get a Graph access token
+// Step 2 — POST assertion to Entra to get a blueprint app token
 app.post("/api/step2", async (req, res) => {
   try {
-    const { tenantId, blueprintAppId, agentIdentityObjId, assertion } = req.body;
+    const { tenantId, blueprintAppId, agentAppId, assertion } = req.body;
     if (!tenantId || !blueprintAppId || !assertion) {
       return res.status(400).json({ error: "Missing required fields: tenantId, blueprintAppId, assertion." });
     }
@@ -120,11 +117,11 @@ app.post("/api/step2", async (req, res) => {
     const form = new URLSearchParams({
       grant_type:            "client_credentials",
       client_id:             blueprintAppId,
-      scope:                 "https://graph.microsoft.com/.default",
+      scope:                 "api://AzureADTokenExchange/.default",
       client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-      client_assertion:      assertion
+      client_assertion:      assertion,
+      fmi_path:              agentAppId || blueprintAppId
     });
-    if (agentIdentityObjId) form.set("agent_identity_id", agentIdentityObjId);
 
     console.log("Step 2 POST:", tokenUrl);
     const { statusCode, body } = await httpPost(tokenUrl, form.toString());
@@ -136,6 +133,36 @@ app.post("/api/step2", async (req, res) => {
     return res.json({ token: body.access_token, decoded: decodeJwt(body.access_token) });
   } catch (err) {
     return res.status(500).json({ error: "Step 2 failed.", details: { message: err.message, stack: err.stack } });
+  }
+});
+
+// Step 3 — POST blueprint token to Entra to get an autonomous agent Graph token
+app.post("/api/step3", async (req, res) => {
+  try {
+    const { tenantId, blueprintAppId, agentAppId, assertion } = req.body;
+    if (!tenantId || !blueprintAppId || !assertion) {
+      return res.status(400).json({ error: "Missing required fields: tenantId, blueprintAppId, assertion." });
+    }
+
+    const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+    const form = new URLSearchParams({
+      client_id:             agentAppId || blueprintAppId,
+      scope:                 "https://graph.microsoft.com/.default",
+      client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+      client_assertion:      assertion,
+      grant_type:            "client_credentials"
+    });
+
+    console.log("Step 3 POST:", tokenUrl);
+    const { statusCode, body } = await httpPost(tokenUrl, form.toString());
+    console.log("Step 3 response:", statusCode);
+
+    if (statusCode !== 200 || !body.access_token) {
+      return res.status(500).json({ error: "Step 3 failed.", details: { statusCode, raw: body } });
+    }
+    return res.json({ token: body.access_token, decoded: decodeJwt(body.access_token) });
+  } catch (err) {
+    return res.status(500).json({ error: "Step 3 failed.", details: { message: err.message, stack: err.stack } });
   }
 });
 
