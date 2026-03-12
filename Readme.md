@@ -29,10 +29,11 @@ It consists of a set of http requests to operate on various Agent ID objects (cr
 4. Open the createBlueprint.http file and execute the following *Send* actions:
 
 - *login*
-- *createBlueprintServicePrincipal*
 - *createBlueprint*
-- *createAgent*
-
+- *listBlueprints*
+- *createBlueprintServicePrincipal*
+- *createBlueprintPasswordCredential*
+- *assignApplicationUri*
 
 5. Update Operation/main.bicep with values from your application registration.
 
@@ -48,19 +49,11 @@ az deployment group create \
 .\deploy.ps1  -ResourceGroup <rg> -AppName <app name from bicep> 
 ```
 
-7. Open the acquireToken.http file. Update the *createdFederatedCredential* json body by replacing the current value of the *subject* claim with the Object ID value of the managed identity created for the web app. Then execute the following *Send* actions:
+7. Open the createBlueprint.http file. Update the *createdFederatedCredential* json body by replacing the current value of the *subject* claim with the Object ID value of the managed identity created for the web app. Then execute the following *Send* actions:
 
 - *login*
 - *createFederatedIdentityCredential*
 
-8. Naviagte to the web app, update the FIC_PATH_GUID parameter with the object id of the Federated Credential created in step 4 above. Execute the two token acquisition steps in sequence. The 2nd step should return a token to to MS Graph.
+8. Navigate to the web app, Execute the 3 steps to get a Graph token for the Agent.
 
-## How does it differ from the [documented](https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/autonomous-agent-request-tokens?tabs=Microsoft-graph-api) flow?
-
-1. Using GET to get the Managed Identity token rather than POST to the /token endpoint.
-
-2. In Managed Identity token acqusition, the code uses the *resource=* rather than *scope=* parameter. The latter may work as well - I was trying to get a token with uri rather than GUID audience claim as part of earlier attempts at fixing another problem.
-
-2. the value of the *fmi_path=* parameter is the *object id* of the Federated Identity Credential created in the above *createFederatedCredential* step rather than *agent-identity-client-id* as documented.
-
-4. In the 2nd step (Request agent identity), added *agent_id_id* parameter, **object id** of the agent created in the *createAgent* step above.
+[Based on this document](https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/autonomous-agent-request-tokens?tabs=Microsoft-graph-api).
