@@ -19,6 +19,7 @@ Authorization: Bearer {{login.response.body.access_token}}
 {
     "@odata.type": "Microsoft.Graph.AgentIdentityBlueprint",
     "displayName": "Blueprint V4",
+    "description": "This is a blueprint for creating autonomous agents with Microsoft Graph API.",
     "sponsors@odata.bind": [
         "https://graph.microsoft.com/v1.0/users/{{$dotenv USER_OBJECT_ID}}",
     ],
