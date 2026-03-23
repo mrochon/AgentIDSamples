@@ -127,20 +127,18 @@
         <h2>Configuration</h2>
         <div class="row2">
           <div>
-            <label>Managed Identity ID <small style="font-weight:normal;opacity:.7">(AZURE_CLIENT_ID)</small></label>
-            <input id="managedIdentityId" type="text" placeholder="Injected from managed identity client ID" readonly style="opacity:.8;cursor:default" />
-            <label>BLUEPRINT_APP_ID</label>
-            <input id="blueprintAppId" type="text" placeholder="Client ID of the blueprint app" />
-          </div>
-          <div>
             <label>TENANT_ID</label>
             <input id="tenantId" type="text" placeholder="Entra tenant ID" />
-            <label>Agent SP Id</label>
-            <input id="agentSpId" type="text" value="93413270-1aaa-4584-a6d2-8d29ac286e1e" placeholder="Service principal ID of the agent" />
-            <label>Agent App Id</label>
-            <input id="agentAppId" type="text" value="1eeb2aed-e2f8-4056-b780-70ce54b59c6a" placeholder="App (client) ID of the agent" />
+            <label>Managed Identity ID <small style="font-weight:normal;opacity:.7">(AZURE_CLIENT_ID)</small></label>
+            <input id="managedIdentityId" type="text" placeholder="Injected from managed identity client ID" readonly style="opacity:.8;cursor:default" />
             <label>MI_OBJECT_ID <small style="font-weight:normal;opacity:.7">(Managed Identity Object Id)</small></label>
             <input id="miObjectId" type="text" value="53b2c0cc-0779-4d4a-a64a-77af97686264" placeholder="Object ID of the managed identity" />
+          </div>
+          <div>
+            <label>BLUEPRINT_APP_ID</label>
+            <input id="blueprintAppId" type="text" placeholder="Client ID of the blueprint app" />
+            <label>Agent App Id</label>
+            <input id="agentAppId" type="text" value="1eeb2aed-e2f8-4056-b780-70ce54b59c6a" placeholder="App (client) ID of the agent" />
           </div>
         </div>
       </div>
@@ -213,7 +211,6 @@
       const inManagedIdentityId = $("managedIdentityId");
       const inBlueprintAppId    = $("blueprintAppId");
       const inTenantId          = $("tenantId");
-      const inAgentSpId         = $("agentSpId");
       const inAgentAppId        = $("agentAppId");
 
       let resolvedEndpoint    = "";
@@ -268,7 +265,7 @@
         $("step2Body").textContent = bodyLines.join("\n");
       }
 
-      [inManagedIdentityId, inBlueprintAppId, inTenantId, inAgentSpId, inAgentAppId].forEach(el => {
+      [inManagedIdentityId, inBlueprintAppId, inTenantId, inAgentAppId].forEach(el => {
         el.addEventListener("input", () => { buildStep1Url(); buildStep2Preview(); buildStep3Preview(); });
       });
 
