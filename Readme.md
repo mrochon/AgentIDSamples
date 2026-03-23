@@ -43,10 +43,20 @@ The template creates an App Service plan, a Web App, and a user-assigned managed
 
 ```
 az login --tenant <your tenant>
-az deployment group create \
-  --resource-group <rg> \
-  --template-file main.bicep
-.\deploy.ps1  -ResourceGroup <rg> -AppName <app name from bicep> 
+
+# Full deployment (infrastructure + app code) — run when main.bicep changes
+cd Operation
+.\deploy.ps1  -ResourceGroup <rg> -AppName <app name from bicep>
+
+# App code only — run when only server.js / public/* / package.json change
+.\deploy.ps1  -ResourceGroup <rg> -AppName <app name from bicep> -AppOnly
+```
+
+Example:
+```
+cd Operation
+.\deploy.ps1  -ResourceGroup agentid -AppName operation-web-igzu6xvzldpys
+.\deploy.ps1  -ResourceGroup agentid -AppName operation-web-igzu6xvzldpys -AppOnly
 ```
 
 7. Open the createBlueprint.http file. Update the *createdFederatedCredential* json body by replacing the current value of the *subject* claim with the Object ID value of the managed identity created for the web app. Then execute the following *Send* actions:

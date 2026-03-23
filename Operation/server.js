@@ -69,7 +69,8 @@ app.get("/api/config", (_req, res) => {
     endpoint:          process.env.IDENTITY_ENDPOINT || "",
     managedIdentityId: process.env.AZURE_CLIENT_ID   || "",
     blueprintAppId:    process.env.BLUEPRINT_APP_ID  || "",
-    agentAppId:        process.env.AGENT_APP_ID       || "",
+    agentAppId:        process.env.AGENT_APP_ID      || "",
+    miObjectId:        process.env.MI_OBJECT_ID      || "",
     tenantId:          process.env.TENANT_ID         || ""
   });
 });

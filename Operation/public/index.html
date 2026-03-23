@@ -132,13 +132,13 @@
             <label>Managed Identity ID <small style="font-weight:normal;opacity:.7">(AZURE_CLIENT_ID)</small></label>
             <input id="managedIdentityId" type="text" placeholder="Injected from managed identity client ID" readonly style="opacity:.8;cursor:default" />
             <label>MI_OBJECT_ID <small style="font-weight:normal;opacity:.7">(Managed Identity Object Id)</small></label>
-            <input id="miObjectId" type="text" value="53b2c0cc-0779-4d4a-a64a-77af97686264" placeholder="Object ID of the managed identity" />
+            <input id="miObjectId" type="text" placeholder="Object ID of the managed identity" />
           </div>
           <div>
             <label>BLUEPRINT_APP_ID</label>
             <input id="blueprintAppId" type="text" placeholder="Client ID of the blueprint app" />
             <label>Agent App Id</label>
-            <input id="agentAppId" type="text" value="1eeb2aed-e2f8-4056-b780-70ce54b59c6a" placeholder="App (client) ID of the agent" />
+            <input id="agentAppId" type="text" placeholder="App (client) ID of the agent" />
           </div>
         </div>
       </div>
@@ -275,6 +275,8 @@
           resolvedEndpoint          = d.endpoint;
           inManagedIdentityId.value = d.managedIdentityId;
           inBlueprintAppId.value    = d.blueprintAppId;
+          inAgentAppId.value        = d.agentAppId;
+          $('miObjectId').value     = d.miObjectId;
           inTenantId.value          = d.tenantId;
           buildStep1Url();
           buildStep2Preview();

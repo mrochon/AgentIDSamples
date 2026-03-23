@@ -3,9 +3,10 @@ param appName string = 'operation-web-${uniqueString(resourceGroup().id)}'
 param planName string = '${appName}-plan'
 param identityName string = '${appName}-uami'
 param ficPathGuid string = '63a2d916-7e98-4f46-8979-68a479900b7d'
-param agentAppId string = '1eeb2aed-e2f8-4056-b780-70ce54b59c6a'
+param agentAppId string = 'a37e43c1-1b69-427e-83e1-94d6bcc50065'
+param miObjectId string = '53b2c0cc-0779-4d4a-a64a-77af97686264'
 param tenantId string = '1165490c-89b5-463b-b203-8b77e01597d2'
-param blueprintAppId string = '02c162cb-cfd5-445e-9517-b6dbd2309259'
+param blueprintAppId string = 'dbbbac41-d18e-4450-a75a-d49fa0950d9a'
 
 resource userAssignedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: identityName
@@ -57,6 +58,14 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'AGENT_IDENTITY_OBJECT_ID'
           value: agentAppId
+        }
+        {
+          name: 'AGENT_APP_ID'
+          value: agentAppId
+        }
+        {
+          name: 'MI_OBJECT_ID'
+          value: miObjectId
         }
         {
           name: 'TENANT_ID'

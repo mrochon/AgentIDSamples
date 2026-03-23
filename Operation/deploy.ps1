@@ -6,21 +6,26 @@ param(
   [string]$BlueprintAppId        = "",
   [string]$FicPathGuid           = "",
   [string]$AgentAppId = "",
-  [string]$TenantId              = ""
+  [string]$TenantId              = "",
+  [switch]$AppOnly
 )
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "Deploying infrastructure..."
-$deployParams = @(
-  "--resource-group", $ResourceGroup,
-  "--template-file", "main.bicep"
-)
-if ($BlueprintAppId)        { $deployParams += "--parameters"; $deployParams += "blueprintAppId=$BlueprintAppId" }
-if ($FicPathGuid)           { $deployParams += "--parameters"; $deployParams += "ficPathGuid=$FicPathGuid" }
-if ($AgentAppId) { $deployParams += "--parameters"; $deployParams += "agentAppId=$AgentAppId" }
-if ($TenantId)              { $deployParams += "--parameters"; $deployParams += "tenantId=$TenantId" }
-az deployment group create @deployParams | Out-Null
+if (-not $AppOnly) {
+  Write-Host "Deploying infrastructure..."
+  $deployParams = @(
+    "--resource-group", $ResourceGroup,
+    "--template-file", "main.bicep"
+  )
+  if ($BlueprintAppId)        { $deployParams += "--parameters"; $deployParams += "blueprintAppId=$BlueprintAppId" }
+  if ($FicPathGuid)           { $deployParams += "--parameters"; $deployParams += "ficPathGuid=$FicPathGuid" }
+  if ($AgentAppId) { $deployParams += "--parameters"; $deployParams += "agentAppId=$AgentAppId" }
+  if ($TenantId)              { $deployParams += "--parameters"; $deployParams += "tenantId=$TenantId" }
+  az deployment group create @deployParams | Out-Null
+} else {
+  Write-Host "Skipping infrastructure deployment (-AppOnly)."
+}
 
 Write-Host "Creating deployment package (with dependencies)..."
 $zipPath = Join-Path $PSScriptRoot "app.zip"
