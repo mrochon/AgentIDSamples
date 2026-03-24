@@ -5,7 +5,7 @@ param(
   [string]$AppName,
   [string]$BlueprintAppId        = "",
   [string]$FicPathGuid           = "",
-  [string]$AgentAppId = "",
+  [string]$AgentObjectId = "",
   [string]$TenantId              = "",
   [switch]$AppOnly
 )
@@ -20,7 +20,7 @@ if (-not $AppOnly) {
   )
   if ($BlueprintAppId)        { $deployParams += "--parameters"; $deployParams += "blueprintAppId=$BlueprintAppId" }
   if ($FicPathGuid)           { $deployParams += "--parameters"; $deployParams += "ficPathGuid=$FicPathGuid" }
-  if ($AgentAppId) { $deployParams += "--parameters"; $deployParams += "agentAppId=$AgentAppId" }
+  if ($AgentObjectId) { $deployParams += "--parameters"; $deployParams += "agentObjectId=$AgentObjectId" }
   if ($TenantId)              { $deployParams += "--parameters"; $deployParams += "tenantId=$TenantId" }
   az deployment group create @deployParams | Out-Null
 } else {

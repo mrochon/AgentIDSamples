@@ -69,7 +69,7 @@ app.get("/api/config", (_req, res) => {
     endpoint:          process.env.IDENTITY_ENDPOINT || "",
     managedIdentityId: process.env.AZURE_CLIENT_ID   || "",
     blueprintAppId:    process.env.BLUEPRINT_APP_ID  || "",
-    agentAppId:        process.env.AGENT_APP_ID      || "",
+    agentObjectId:     process.env.AGENT_APP_ID      || "",
     miObjectId:        process.env.MI_OBJECT_ID      || "",
     tenantId:          process.env.TENANT_ID         || ""
   });
@@ -109,7 +109,7 @@ app.get("/api/step1", async (req, res) => {
 // Step 2 — POST assertion to Entra to get a blueprint app token
 app.post("/api/step2", async (req, res) => {
   try {
-    const { tenantId, blueprintAppId, agentAppId, assertion } = req.body;
+    const { tenantId, blueprintAppId, agentObjectId, assertion } = req.body;
     if (!tenantId || !blueprintAppId || !assertion) {
       return res.status(400).json({ error: "Missing required fields: tenantId, blueprintAppId, assertion." });
     }
@@ -121,7 +121,7 @@ app.post("/api/step2", async (req, res) => {
       scope:                 "api://AzureADTokenExchange/.default",
       client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
       client_assertion:      assertion,
-      fmi_path:              agentAppId || blueprintAppId
+      fmi_path:              agentObjectId || blueprintAppId
     });
 
     console.log("Step 2 POST:", tokenUrl);
@@ -140,14 +140,14 @@ app.post("/api/step2", async (req, res) => {
 // Step 3 — POST blueprint token to Entra to get an autonomous agent Graph token
 app.post("/api/step3", async (req, res) => {
   try {
-    const { tenantId, blueprintAppId, agentAppId, assertion } = req.body;
+    const { tenantId, blueprintAppId, agentObjectId, assertion } = req.body;
     if (!tenantId || !blueprintAppId || !assertion) {
       return res.status(400).json({ error: "Missing required fields: tenantId, blueprintAppId, assertion." });
     }
 
     const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
     const form = new URLSearchParams({
-      client_id:             agentAppId || blueprintAppId,
+      client_id:             agentObjectId || blueprintAppId,
       scope:                 "https://graph.microsoft.com/.default",
       client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
       client_assertion:      assertion,

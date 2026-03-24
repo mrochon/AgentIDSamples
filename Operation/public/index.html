@@ -137,8 +137,8 @@
           <div>
             <label>BLUEPRINT_APP_ID</label>
             <input id="blueprintAppId" type="text" placeholder="Client ID of the blueprint app" />
-            <label>Agent App Id</label>
-            <input id="agentAppId" type="text" placeholder="App (client) ID of the agent" />
+            <label>Agent Object Id</label>
+            <input id="agentObjectId" type="text" placeholder="Agent object ID" />
           </div>
         </div>
       </div>
@@ -211,7 +211,7 @@
       const inManagedIdentityId = $("managedIdentityId");
       const inBlueprintAppId    = $("blueprintAppId");
       const inTenantId          = $("tenantId");
-      const inAgentAppId        = $("agentAppId");
+      const inAgentObjectId      = $("agentObjectId");
 
       let resolvedEndpoint    = "";
       let step1Assertion      = "";
@@ -251,7 +251,7 @@
       function buildStep2Preview() {
         const tid = inTenantId.value.trim();
         const bid = inBlueprintAppId.value.trim();
-        const fmi = inAgentAppId.value.trim();
+        const fmi = inAgentObjectId.value.trim();
         if (!tid || !bid) { $("step2Url").textContent = "Enter Tenant ID and BLUEPRINT_APP_ID above."; $("step2Body").textContent = ""; return; }
         $("step2Url").textContent = "POST https://login.microsoftonline.com/" + tid + "/oauth2/v2.0/token";
         const bodyLines = [
@@ -260,12 +260,12 @@
           "scope=api://AzureADTokenExchange/.default",
           "client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
           "client_assertion=" + (step1Assertion ? step1Assertion.substring(0, 40) + "..." : "<run Step 1 first>"),
-          "fmi_path=" + (fmi || "<agentAppId>")
+          "fmi_path=" + (fmi || "<agentObjectId>")
         ];
         $("step2Body").textContent = bodyLines.join("\n");
       }
 
-      [inManagedIdentityId, inBlueprintAppId, inTenantId, inAgentAppId].forEach(el => {
+      [inManagedIdentityId, inBlueprintAppId, inTenantId, inAgentObjectId].forEach(el => {
         el.addEventListener("input", () => { buildStep1Url(); buildStep2Preview(); buildStep3Preview(); });
       });
 
@@ -275,7 +275,7 @@
           resolvedEndpoint          = d.endpoint;
           inManagedIdentityId.value = d.managedIdentityId;
           inBlueprintAppId.value    = d.blueprintAppId;
-          inAgentAppId.value        = d.agentAppId;
+          inAgentObjectId.value     = d.agentObjectId;
           $('miObjectId').value     = d.miObjectId;
           inTenantId.value          = d.tenantId;
           buildStep1Url();
@@ -330,7 +330,7 @@
             body: JSON.stringify({
               tenantId:       inTenantId.value.trim(),
               blueprintAppId: inBlueprintAppId.value.trim(),
-              agentAppId:     inAgentAppId.value.trim(),
+              agentObjectId:  inAgentObjectId.value.trim(),
               assertion:      step1Assertion
             })
           });
@@ -349,11 +349,11 @@
       function buildStep3Preview() {
         const tid = inTenantId.value.trim();
         const bid = inBlueprintAppId.value.trim();
-        const aid = inAgentAppId.value.trim();
+        const aid = inAgentObjectId.value.trim();
         if (!tid || !bid) { $("step3Url").textContent = "Enter Tenant ID and BLUEPRINT_APP_ID above."; $("step3Body").textContent = ""; return; }
         $("step3Url").textContent = "POST https://login.microsoftonline.com/" + tid + "/oauth2/v2.0/token";
         const bodyLines = [
-          "client_id=" + (aid || "<agentAppId>"),
+          "client_id=" + (aid || "<agentObjectId>"),
           "scope=https://graph.microsoft.com/.default",
           "client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
           "client_assertion=" + (step2BlueprintToken ? step2BlueprintToken.substring(0, 40) + "..." : "<run Step 2 first>"),
@@ -380,7 +380,7 @@
             body: JSON.stringify({
               tenantId:       inTenantId.value.trim(),
               blueprintAppId: inBlueprintAppId.value.trim(),
-              agentAppId:     inAgentAppId.value.trim(),
+              agentObjectId:  inAgentObjectId.value.trim(),
               assertion:      step2BlueprintToken
             })
           });
