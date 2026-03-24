@@ -67,3 +67,39 @@ cd Operation
 8. Navigate to the web app, Execute the 3 steps to get a Graph token for the Agent.
 
 [Based on this document](https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/autonomous-agent-request-tokens?tabs=Microsoft-graph-api).
+
+
+## Notes
+
+I have only added the inheritable permission after creating agents and run into issues granting consent for OBO flows to an agent. Apparently, the following PS script will work:
+
+```PS
+Connect-MgGraph -Scopes "DelegatedPermissionGrant.ReadWrite.All"
+
+# Get Microsoft Graph SP object ID
+$graphSP = Get-MgServicePrincipal -Filter "appId eq '00000003-0000-0000-c000-000000000000'"
+
+# Create the grant
+New-MgOauth2PermissionGrant -BodyParameter @{
+    clientId    = "<agent-identity-SP-object-id>"
+    consentType = "AllPrincipals"
+    resourceId  = $graphSP.Id
+    scope       = "User.Read"
+}
+```
+
+Alternatively use Graph Explorer:
+
+```
+POST https://graph.microsoft.com/v1.0/oauth2PermissionGrants
+Content-Type: application/json
+
+{
+  "clientId": "<agent instance object id>",
+  "consentType": "AllPrincipals",
+  "resourceId": "<API service principal id>",
+  "scope": <scope name>"
+}
+```
+
+Use the webapp from a new in-private browser when trying OBO so that it has access to an un-expired id token. It is needed for exchange for an access token to the agent so that the agent can then exchange for a token to some API.

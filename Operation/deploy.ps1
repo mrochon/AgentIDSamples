@@ -7,10 +7,20 @@ param(
   [string]$FicPathGuid           = "",
   [string]$AgentObjectId = "",
   [string]$TenantId              = "",
+  [string]$HostingAppSecret      = "",
   [switch]$AppOnly
 )
 
 $ErrorActionPreference = "Stop"
+
+# Load secrets from .env if present and parameter not supplied
+$envFile = Join-Path $PSScriptRoot ".env"
+if ((Test-Path $envFile) -and -not $HostingAppSecret) {
+  Get-Content $envFile | Where-Object { $_ -match '^\s*([^#=]+?)\s*=\s*(.*)\s*$' } | ForEach-Object {
+    $key, $val = $Matches[1], $Matches[2]
+    if ($key -eq 'HOSTING_APP_SECRET') { $HostingAppSecret = $val }
+  }
+}
 
 if (-not $AppOnly) {
   Write-Host "Deploying infrastructure..."
@@ -22,6 +32,7 @@ if (-not $AppOnly) {
   if ($FicPathGuid)           { $deployParams += "--parameters"; $deployParams += "ficPathGuid=$FicPathGuid" }
   if ($AgentObjectId) { $deployParams += "--parameters"; $deployParams += "agentObjectId=$AgentObjectId" }
   if ($TenantId)              { $deployParams += "--parameters"; $deployParams += "tenantId=$TenantId" }
+  if ($HostingAppSecret)      { $deployParams += "--parameters"; $deployParams += "hostingAppSecret=$HostingAppSecret" }
   az deployment group create @deployParams | Out-Null
 } else {
   Write-Host "Skipping infrastructure deployment (-AppOnly)."

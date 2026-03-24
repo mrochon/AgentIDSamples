@@ -79,6 +79,7 @@
       .btn-step1 { background: var(--accent); }
       .btn-step2 { background: var(--accent2); }
       .btn-step3 { background: #7a4a8f; }
+      .btn-step4 { background: #8f2a5a; }
 
       .grid2 {
         display: grid;
@@ -203,6 +204,65 @@
           </div>
         </div>
       </div>
+
+      <!-- Step 4 -->
+      <div class="card">
+        <h2>Step 4 — Acquire OBO agent token</h2>
+
+        <h3 style="font-size:14px;margin:0 0 10px">Step 4a — User id_token (from EasyAuth) — <span id="step4TokenType" style="font-weight:normal;color:#555">not yet fetched</span></h3>
+        <label>Hosting app secret <small style="font-weight:normal;opacity:.7">(HOSTING_APP_SECRET — client secret of the app registration used by this web app)</small></label>
+        <input id="hostingAppSecret" type="text" placeholder="Client secret of the hosting app registration" />
+
+        <label style="margin-top:12px">OBO Call 1 — Exchange id_token for blueprint <code>access_as_user</code> scope</label>
+        <label>POST URL</label>
+        <div id="step4Obo1Url" class="url-box">Enter Tenant ID above.</div>
+        <label>Request body</label>
+        <div id="step4Obo1Body" class="url-box">Waiting for id_token fetch...</div>
+
+        <button class="btn-step1" id="btnFetchUserToken" style="margin-bottom:8px">Fetch user token &amp; run OBO Call 1</button>
+        <div id="step4FetchError" class="error-box"></div>
+        <div class="grid2" style="margin-bottom:14px">
+          <div>
+            <label>Raw id_token</label>
+            <textarea id="step4UserTokenRaw" readonly placeholder="id_token appears after fetch"></textarea>
+          </div>
+          <div>
+            <label>Decoded id_token body</label>
+            <textarea id="step4UserTokenDecoded" readonly placeholder="Decoded body appears after fetch"></textarea>
+          </div>
+        </div>
+
+        <h3 style="font-size:14px;margin:0 0 8px;border-top:1px solid var(--border);padding-top:12px">OBO Call 1 result — access_as_user token</h3>
+        <div id="step4Obo1Error" class="error-box"></div>
+        <div class="grid2" style="margin-bottom:14px">
+          <div>
+            <label>Raw access_as_user token</label>
+            <textarea id="step4Obo1TokenRaw" readonly placeholder="Appears after OBO Call 1"></textarea>
+          </div>
+          <div>
+            <label>Decoded token body</label>
+            <textarea id="step4Obo1TokenDecoded" readonly placeholder="Decoded body appears after OBO Call 1"></textarea>
+          </div>
+        </div>
+
+        <h3 style="font-size:14px;margin:0 0 8px;border-top:1px solid var(--border);padding-top:12px">Step 4b — OBO Call 2 — Acquire agent token using access_as_user token</h3>
+        <label>POST URL</label>
+        <div id="step4Url" class="url-box">Resolving...</div>
+        <label>Request body</label>
+        <div id="step4Body" class="url-box">Waiting for Step 2 and OBO Call 1...</div>
+        <button class="btn-step4" id="btnStep4">Get OBO agent token</button>
+        <div id="step4Error" class="error-box"></div>
+        <div class="grid2">
+          <div>
+            <label>Raw token</label>
+            <textarea id="step4Token" readonly placeholder="OBO agent token appears here"></textarea>
+          </div>
+          <div>
+            <label>Decoded token body</label>
+            <textarea id="step4Decoded" readonly placeholder="Decoded body appears here"></textarea>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
@@ -212,10 +272,12 @@
       const inBlueprintAppId    = $("blueprintAppId");
       const inTenantId          = $("tenantId");
       const inAgentObjectId      = $("agentObjectId");
+      const inHostingAppSecret   = $("hostingAppSecret");
 
       let resolvedEndpoint    = "";
       let step1Assertion      = "";
       let step2BlueprintToken = "";
+      let step4UserToken      = "";  // OBO1 access_as_user token
 
       function showError(boxId, data) {
         const box = $(boxId);
@@ -234,6 +296,15 @@
         const b = $(boxId);
         b.textContent = "";
         b.style.display = "none";
+      }
+
+      function decodeJwtClient(token) {
+        const parts = token.split(".");
+        if (parts.length < 2) return null;
+        const seg = parts[1].replace(/-/g, "+").replace(/_/g, "/")
+          .padEnd(Math.ceil(parts[1].length / 4) * 4, "=");
+        try { return JSON.parse(atob(seg)); }
+        catch { return null; }
       }
 
       function buildStep1Url() {
@@ -266,8 +337,10 @@
       }
 
       [inManagedIdentityId, inBlueprintAppId, inTenantId, inAgentObjectId].forEach(el => {
-        el.addEventListener("input", () => { buildStep1Url(); buildStep2Preview(); buildStep3Preview(); });
+        el.addEventListener("input", () => { buildStep1Url(); buildStep2Preview(); buildStep3Preview(); buildStep4Obo1Preview(); buildStep4Preview(); });
       });
+
+      inHostingAppSecret.addEventListener("input", () => { buildStep4Obo1Preview(); });
 
       fetch("/api/config")
         .then(r => r.json())
@@ -278,9 +351,12 @@
           inAgentObjectId.value     = d.agentObjectId;
           $('miObjectId').value     = d.miObjectId;
           inTenantId.value          = d.tenantId;
+          if (d.hostingAppSecret) inHostingAppSecret.value = d.hostingAppSecret;
           buildStep1Url();
           buildStep2Preview();
           buildStep3Preview();
+          buildStep4Obo1Preview();
+          buildStep4Preview();
         })
         .catch(() => { $("step1Url").textContent = "Failed to load config from server."; });
 
@@ -340,6 +416,8 @@
           $("step2Decoded").value = JSON.stringify(d.decoded, null, 2);
           step2BlueprintToken     = d.token;
           buildStep3Preview();
+          buildStep4Obo1Preview();
+          buildStep4Preview();
         } catch (e) {
           $("step2Token").value = "";
           showError("step2Error", { error: String(e) });
@@ -360,6 +438,41 @@
           "grant_type=client_credentials"
         ];
         $("step3Body").textContent = bodyLines.join("\n");
+      }
+
+      function buildStep4Obo1Preview(idTokenAud) {
+        const tid = inTenantId.value.trim();
+        const bid = inBlueprintAppId.value.trim();
+        const sec = inHostingAppSecret.value.trim();
+        if (!tid) { $("step4Obo1Url").textContent = "Enter Tenant ID above."; $("step4Obo1Body").textContent = ""; return; }
+        $("step4Obo1Url").textContent = "POST https://login.microsoftonline.com/" + tid + "/oauth2/v2.0/token";
+        const bodyLines = [
+          "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+          "&client_id=" + (idTokenAud || "<aud from id_token \u2014 fetch first>"),
+          "&client_secret=" + (sec ? "***" : "<enter hosting app secret above>"),
+          "&assertion=<id_token \u2014 fetch first>",
+          "&requested_token_use=on_behalf_of",
+          "&scope=api://" + (bid || "<blueprintAppId>") + "/access_as_user"
+        ];
+        $("step4Obo1Body").textContent = bodyLines.join("\n");
+      }
+
+      function buildStep4Preview() {
+        const tid = inTenantId.value.trim();
+        const aid = inAgentObjectId.value.trim();
+        const userTok = step4UserToken;
+        if (!tid || !aid) { $("step4Url").textContent = "Enter Tenant ID and Agent Object ID above."; $("step4Body").textContent = ""; return; }
+        $("step4Url").textContent = "POST https://login.microsoftonline.com/" + tid + "/oauth2/v2.0/token";
+        const bodyLines4 = [
+          "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+          "&client_id=" + (aid || "<agentObjectId>"),
+          "&client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer",
+          "&client_assertion=" + (step2BlueprintToken ? step2BlueprintToken.substring(0, 40) + "..." : "<run Step 2 first>"),
+          "&assertion=" + (step4UserToken ? step4UserToken.substring(0, 40) + "... (OBO1 access_as_user token)" : "<run OBO Call 1 above>"),
+          "&requested_token_use=on_behalf_of",
+          "&scope=https://graph.microsoft.com/mail.read"
+        ];
+        $("step4Body").textContent = bodyLines4.join("\n");
       }
 
       $("btnStep3").addEventListener("click", async () => {
@@ -391,6 +504,90 @@
         } catch (e) {
           $("step3Token").value = "";
           showError("step3Error", { error: String(e) });
+        }
+      });
+
+      $("btnFetchUserToken").addEventListener("click", async () => {
+        clearError("step4FetchError");
+        clearError("step4Obo1Error");
+        $("step4UserTokenRaw").value     = "Fetching id_token...";
+        $("step4UserTokenDecoded").value = "";
+        $("step4Obo1TokenRaw").value     = "";
+        $("step4Obo1TokenDecoded").value = "";
+        step4UserToken = "";
+        buildStep4Preview();
+        try {
+          // 1. Get id_token from EasyAuth
+          const r = await fetch("/api/usertoken");
+          const d = await r.json();
+          if (!r.ok) { $("step4UserTokenRaw").value = ""; showError("step4FetchError", d); return; }
+          $("step4TokenType").textContent  = "id_token";
+          $("step4UserTokenRaw").value     = d.token;
+          $("step4UserTokenDecoded").value = JSON.stringify(d.decoded, null, 2);
+
+          // update OBO1 preview with real aud
+          const idDecoded  = d.decoded || {};
+          const idTokenAud = Array.isArray(idDecoded.aud) ? idDecoded.aud[0] : (idDecoded.aud || "");
+          buildStep4Obo1Preview(idTokenAud);
+
+          // 2. OBO Call 1: exchange id_token for access_as_user token
+          $("step4Obo1TokenRaw").value = "Running OBO Call 1...";
+          const r2 = await fetch("/api/obo1", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tenantId:         inTenantId.value.trim(),
+              idToken:          d.token,
+              hostingAppSecret: inHostingAppSecret.value.trim(),
+              blueprintAppId:   inBlueprintAppId.value.trim()
+            })
+          });
+          const d2 = await r2.json();
+          if (!r2.ok) { $("step4Obo1TokenRaw").value = ""; showError("step4Obo1Error", d2); return; }
+          step4UserToken = d2.token;
+          $("step4Obo1TokenRaw").value     = d2.token;
+          $("step4Obo1TokenDecoded").value = JSON.stringify(d2.decoded, null, 2);
+          buildStep4Preview();
+        } catch (e) {
+          $("step4UserTokenRaw").value = "";
+          showError("step4FetchError", { error: String(e) });
+        }
+      });
+
+      $("btnStep4").addEventListener("click", async () => {
+        clearError("step4Error");
+        $("step4Token").value   = "Requesting...";
+        $("step4Decoded").value = "";
+
+        if (!step2BlueprintToken) {
+          showError("step4Error", { error: "Run Step 2 first to obtain the blueprint token." });
+          $("step4Token").value = "";
+          return;
+        }
+        if (!step4UserToken) {
+          showError("step4Error", { error: "Fetch the user token first." });
+          $("step4Token").value = "";
+          return;
+        }
+
+        try {
+          const r = await fetch("/api/step4", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tenantId:       inTenantId.value.trim(),
+              agentObjectId:  inAgentObjectId.value.trim(),
+              blueprintToken: step2BlueprintToken,
+              userToken:      step4UserToken
+            })
+          });
+          const d = await r.json();
+          if (!r.ok) { $("step4Token").value = ""; showError("step4Error", d); return; }
+          $("step4Token").value   = d.token;
+          $("step4Decoded").value = JSON.stringify(d.decoded, null, 2);
+        } catch (e) {
+          $("step4Token").value = "";
+          showError("step4Error", { error: String(e) });
         }
       });
     </script>

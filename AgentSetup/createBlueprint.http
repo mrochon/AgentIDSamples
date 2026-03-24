@@ -74,7 +74,7 @@ Authorization: Bearer {{login.response.body.access_token}}
 				}
 			]
 		}
-	]         
+	]   
 }
 
 ###
@@ -245,8 +245,20 @@ GET https://graph.microsoft.com/beta/servicePrincipals/microsoft.graph.agentIden
 Authorization: Bearer {{login.response.body.access_token}}
 
 ###
-# @name getServicePrincipalForAnAgent
-GET https://graph.microsoft.com/v1.0/servicePrincipals?$filter=appId eq '{{listAgentsForBlueprint.response.body.value[0].agentAppId}}'
+# @name setPermissionGrantsForAgent
+POST https://graph.microsoft.com/v1.0/oauth2PermissionGrants
+Content-Type: application/json
+
+{
+  "clientId": "{{listAgentsForBlueprint.response.body.value[1].id}}",
+  "consentType": "AllPrincipals",
+  "resourceId": "00000003-0000-0000-c000-000000000000",
+  "scope": "Mail.Read"
+}
+
+###
+# @name getPermissionGrantsForAnAgent
+GET https://graph.microsoft.com/v1.0/servicePrincipals/{{listAgentsForBlueprint.response.body.value[1].id}}/oauth2PermissionGrants
 Authorization: Bearer {{login.response.body.access_token}}
 
 ###

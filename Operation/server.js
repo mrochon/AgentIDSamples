@@ -71,6 +71,7 @@ app.get("/api/config", (_req, res) => {
     blueprintAppId:    process.env.BLUEPRINT_APP_ID  || "",
     agentObjectId:     process.env.AGENT_APP_ID      || "",
     miObjectId:        process.env.MI_OBJECT_ID      || "",
+    hostingAppSecret:  process.env.HOSTING_APP_SECRET || "",
     tenantId:          process.env.TENANT_ID         || ""
   });
 });
@@ -164,6 +165,81 @@ app.post("/api/step3", async (req, res) => {
     return res.json({ token: body.access_token, decoded: decodeJwt(body.access_token) });
   } catch (err) {
     return res.status(500).json({ error: "Step 3 failed.", details: { message: err.message, stack: err.stack } });
+  }
+});
+
+// User id_token — read from EasyAuth header injected by Azure App Service
+app.get("/api/usertoken", (req, res) => {
+  const idToken = req.headers["x-ms-token-aad-id-token"];
+  if (!idToken) {
+    return res.status(401).json({ error: "User id_token not available. Ensure EasyAuth (Azure AD authentication) is enabled on this App Service and you are signed in." });
+  }
+  return res.json({ token: idToken, tokenType: "id_token", decoded: decodeJwt(idToken) });
+});
+
+// OBO Call 1 — exchange id_token for access_as_user token scoped to blueprint app
+app.post("/api/obo1", async (req, res) => {
+  try {
+    const { tenantId, idToken, hostingAppSecret, blueprintAppId } = req.body;
+    if (!tenantId || !idToken || !hostingAppSecret || !blueprintAppId) {
+      return res.status(400).json({ error: "Missing required fields: tenantId, idToken, hostingAppSecret, blueprintAppId." });
+    }
+    const idDecoded = decodeJwt(idToken);
+    const aud = idDecoded && idDecoded.aud;
+    const clientId = Array.isArray(aud) ? aud[0] : aud;
+    if (!clientId) {
+      return res.status(400).json({ error: "Could not extract aud claim from id_token." });
+    }
+    const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+    const form = new URLSearchParams({
+      grant_type:          "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      client_id:           clientId,
+      client_secret:       hostingAppSecret,
+      assertion:           idToken,
+      requested_token_use: "on_behalf_of",
+      scope:               `api://${blueprintAppId}/access_as_user`
+    });
+    console.log("OBO1 POST:", tokenUrl);
+    const { statusCode, body } = await httpPost(tokenUrl, form.toString());
+    console.log("OBO1 response:", statusCode);
+    if (statusCode !== 200 || !body.access_token) {
+      return res.status(500).json({ error: "OBO1 failed.", details: { statusCode, raw: body } });
+    }
+    return res.json({ token: body.access_token, decoded: decodeJwt(body.access_token) });
+  } catch (err) {
+    return res.status(500).json({ error: "OBO1 failed.", details: { message: err.message, stack: err.stack } });
+  }
+});
+
+// Step 4 — OBO: acquire agent token on behalf of user
+app.post("/api/step4", async (req, res) => {
+  try {
+    const { tenantId, agentObjectId, blueprintToken, userToken } = req.body;
+    if (!tenantId || !agentObjectId || !blueprintToken || !userToken) {
+      return res.status(400).json({ error: "Missing required fields: tenantId, agentObjectId, blueprintToken, userToken." });
+    }
+
+    const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+    const form = new URLSearchParams({
+      grant_type:            "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      client_id:             agentObjectId,
+      client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+      client_assertion:      blueprintToken,
+      assertion:             userToken,
+      requested_token_use:   "on_behalf_of",
+      scope:                 "https://graph.microsoft.com/mail.read"
+    });
+
+    console.log("Step 4 POST:", tokenUrl);
+    const { statusCode, body } = await httpPost(tokenUrl, form.toString());
+    console.log("Step 4 response:", statusCode);
+
+    if (statusCode !== 200 || !body.access_token) {
+      return res.status(500).json({ error: "Step 4 failed.", details: { statusCode, raw: body } });
+    }
+    return res.json({ token: body.access_token, decoded: decodeJwt(body.access_token) });
+  } catch (err) {
+    return res.status(500).json({ error: "Step 4 failed.", details: { message: err.message, stack: err.stack } });
   }
 });
 
