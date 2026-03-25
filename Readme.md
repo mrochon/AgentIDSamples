@@ -71,6 +71,8 @@ cd Operation
 
 ## Notes
 
+Use Blueprint's ojectId to find the SP in Enterprise Apps - searching by name does not seem to work.
+
 I have only added the inheritable permission after creating agents and run into issues granting consent for OBO flows to an agent. Apparently, the following PS script will work:
 
 ```PS
@@ -103,3 +105,5 @@ Content-Type: application/json
 ```
 
 Use the webapp from a new in-private browser when trying OBO so that it has access to an un-expired id token. It is needed for exchange for an access token to the agent so that the agent can then exchange for a token to some API.
+
+The Token Tester APP uses the 'quick-and-dirty' SPA configuration (one app registration for both the SPA and the API it uses as backend), make sure to give the Token Tester app delegated API permission to whatever Blueprint you want to get delegated tokens to.
