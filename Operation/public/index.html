@@ -147,6 +147,7 @@
       <!-- Step 1 -->
       <div class="card">
         <h2>Step 1 — Get MI token</h2>
+        <p>Identifies the host, here via Managed Identity</p>
         <label>Request URL</label>
         <div id="step1Url" class="url-box">Resolving...</div>
         <button class="btn-step1" id="btnStep1">Get MI token</button>
@@ -166,6 +167,7 @@
       <!-- Step 2 -->
       <div class="card">
         <h2>Step 2 — Get Blueprint token</h2>
+        <p>Get blueprint token with permissions to operate on a specific agent instance (fmi_path)</p>
         <label>POST URL</label>
         <div id="step2Url" class="url-box">Resolving...</div>
         <label>Request body</label>
@@ -187,6 +189,7 @@
       <!-- Step 3 -->
       <div class="card">
         <h2>Step 3 — Acquire autonomous agent token</h2>
+        <p>Acquire a token for an autonomous agent to perform actions on its own behalf.</p>
         <label>POST URL</label>
         <div id="step3Url" class="url-box">Resolving...</div>
         <label>Request body</label>
@@ -208,7 +211,10 @@
       <!-- Step 4 -->
       <div class="card">
         <h2>Step 4 — Acquire OBO agent token</h2>
-
+        <p>Acquire an on-behalf-of token for an agent to perform actions on behalf of the user.</p>
+        <p>First two steps are simulating what would have happened when user signs in to the hosting client application.
+          Here we are re-using the EasyAuth id_token as the user token to exchange for an access token to this app, which is not a typical scenario but serves the purpose of this demo.
+        </p>
         <h3 style="font-size:14px;margin:0 0 10px">Step 4a — User id_token (from EasyAuth) — <span id="step4TokenType" style="font-weight:normal;color:#555">not yet fetched</span></h3>
         <label>Hosting app secret <small style="font-weight:normal;opacity:.7">(HOSTING_APP_SECRET — client secret of the app registration used by this web app)</small></label>
         <input id="hostingAppSecret" type="password" placeholder="Client secret of the hosting app registration" />
