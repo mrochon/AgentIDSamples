@@ -4,4 +4,3 @@
 
 [Protocol steps for autonomous agents](https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/agent-autonomous-app-oauth-flow#protocol-steps) Step 2 seems to be missing the OBO assertion parameter (agent's federated token). Is this a documentation bug? If I execute it, it fails for me with message: 'AADSTS70025: The client '93fa987b-0955-40f6-bf04-78f620dfd9a3'(My Agent Identity Blueprint V2) has no configured federated identity credentials.', which is quite correct: I have not defined any federated credentials for this agent. Is there any way to define a federated OP without deploying to Azure, AKS or setting up a 3rd party token issuer? (this is just for testing/learning purposes).
 
-TPer definition of the above (autonomous agent) flow, every host app using an agent needs to know the blueprint's credential. That seems like an unnecessary info disclosure. What is the reason for this requirement?
