@@ -1,0 +1,105 @@
+## Description
+
+This folder contains the [createObjects.http](createObjects.http) file with a set of http operations using Microsoft Graph APIs to create AgentId objects: agent blueprint, agent identity, etc. Among others, shows how agents inherit blueprint's permissions.
+
+## Setup 
+
+1. Install VSCode with [REST extension](https://marketplace.visualstudio.com/items?itemName=humao.rest-client).
+
+1. Register an application in your Entra test tenant and copy its properties to .env (tenant id, app id, secret). Grant it Microsoft Graph permissions (some of them are not required - they are used in optional operations):
+
+- AgentIdentityBlueprint.AddRemoveCreds.All
+- AgentIdentityBlueprint.Create
+- AgentIdentityBlueprint.DeleteRestore.All
+- AgentIdentityBlueprint.Read.All
+- AgentIdentityBlueprint.UpdateAuthProperties.All
+- AgentIdentityBlueprint.UpdateBranding.All
+- AgentIdentityBlueprintPrincipal.Create
+- AgentIdentityBlueprintPrincipal.DeleteRestore.All
+- Application.Read.All
+- Application.ReadWrite.All
+- AppRoleAssignment.ReadWrite.All
+
+3. Copy AgentSetup/.env.sample to .env and update it with the app registration details.
+
+4. Open the createBlueprint.http file and execute the following *Send* actions:
+
+- *login*
+- *createBlueprint*
+- *listBlueprints*
+- *createBlueprintServicePrincipal*
+- *createBlueprintPasswordCredential*
+- *assignApplicationUri*
+
+5. Update Operation/main.bicep with values from your application registration.
+
+5. Deploy the Operations web app
+
+The template creates an App Service plan, a Web App, and a user-assigned managed identity.
+
+```
+az login --tenant <your tenant>
+
+# Full deployment (infrastructure + app code) — run when main.bicep changes
+cd Operation
+.\deploy.ps1  -ResourceGroup <rg> -AppName <app name from bicep>
+
+# App code only — run when only server.js / public/* / package.json change
+.\deploy.ps1  -ResourceGroup <rg> -AppName <app name from bicep> -AppOnly
+```
+
+Example:
+```
+cd Operation
+.\deploy.ps1  -ResourceGroup agentid -AppName operation-web-igzu6xvzldpys
+.\deploy.ps1  -ResourceGroup agentid -AppName operation-web-igzu6xvzldpys -AppOnly
+```
+
+7. Open the createBlueprint.http file. Update the *createdFederatedCredential* json body by replacing the current value of the *subject* claim with the Object ID value of the managed identity created for the web app. Then execute the following *Send* actions:
+
+- *login*
+- *createFederatedIdentityCredential*
+
+8. Navigate to the web app, Execute the 3 steps to get a Graph token for the Agent.
+
+[Based on this document](https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/autonomous-agent-request-tokens?tabs=Microsoft-graph-api).
+
+
+## Notes
+
+Use Blueprint's ojectId to find the SP in Enterprise Apps - searching by name does not seem to work.
+
+I have only added the inheritable permission after creating agents and run into issues granting consent for OBO flows to an agent. Apparently, the following PS script will work:
+
+```PS
+Connect-MgGraph -Scopes "DelegatedPermissionGrant.ReadWrite.All"
+
+# Get Microsoft Graph SP object ID
+$graphSP = Get-MgServicePrincipal -Filter "appId eq '00000003-0000-0000-c000-000000000000'"
+
+# Create the grant
+New-MgOauth2PermissionGrant -BodyParameter @{
+    clientId    = "<agent-identity-SP-object-id>"
+    consentType = "AllPrincipals"
+    resourceId  = $graphSP.Id
+    scope       = "User.Read"
+}
+```
+
+Alternatively use Graph Explorer:
+
+```
+POST https://graph.microsoft.com/v1.0/oauth2PermissionGrants
+Content-Type: application/json
+
+{
+  "clientId": "<agent instance object id>",
+  "consentType": "AllPrincipals",
+  "resourceId": "<API service principal id>",
+  "scope": <scope name>"
+}
+```
+
+Use the webapp from a new in-private browser when trying OBO so that it has access to an un-expired id token. It is needed for exchange for an access token to the agent so that the agent can then exchange for a token to some API.
+
+The Token Tester APP uses the 'quick-and-dirty' SPA configuration (one app registration for both the SPA and the API it uses as backend), make sure to give the Token Tester app delegated API permission to whatever Blueprint you want to get delegated tokens to.
