@@ -117,9 +117,26 @@
 
       .row2 { display: flex; gap: 12px; flex-wrap: wrap; }
       .row2 > div { flex: 1 1 260px; }
+
+      .signout-btn {
+        position: fixed;
+        top: 14px;
+        right: 20px;
+        background: #888;
+        color: #fff;
+        border: 0;
+        padding: 7px 14px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        text-decoration: none;
+        z-index: 1000;
+      }
+      .signout-btn:hover { background: #666; }
     </style>
   </head>
   <body>
+    <a class="signout-btn" href="/.auth/logout">Sign out</a>
     <div class="wrap">
       <h1>Agent Identity Token Tester</h1>
       <p><a href="https://github.com/mrochon/AgentIDSamples" target="_blank">Source code</a></p>
@@ -589,7 +606,8 @@
               tenantId:       inTenantId.value.trim(),
               agentObjectId:  inAgentObjectId.value.trim(),
               blueprintToken: step2BlueprintToken,
-              userToken:      step4UserToken
+              userToken:      step4UserToken,
+              scope:          $('step4Scope').value.trim() || 'https://graph.microsoft.com/mail.read'
             })
           });
           const d = await r.json();

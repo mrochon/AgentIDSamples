@@ -214,7 +214,7 @@ app.post("/api/obo1", async (req, res) => {
 // Step 4 — OBO: acquire agent token on behalf of user
 app.post("/api/step4", async (req, res) => {
   try {
-    const { tenantId, agentObjectId, blueprintToken, userToken } = req.body;
+    const { tenantId, agentObjectId, blueprintToken, userToken, scope } = req.body;
     if (!tenantId || !agentObjectId || !blueprintToken || !userToken) {
       return res.status(400).json({ error: "Missing required fields: tenantId, agentObjectId, blueprintToken, userToken." });
     }
@@ -227,7 +227,7 @@ app.post("/api/step4", async (req, res) => {
       client_assertion:      blueprintToken,
       assertion:             userToken,
       requested_token_use:   "on_behalf_of",
-      scope:                 "https://graph.microsoft.com/mail.read"
+      scope:                 scope || "https://graph.microsoft.com/mail.read"
     });
 
     console.log("Step 4 POST:", tokenUrl);
