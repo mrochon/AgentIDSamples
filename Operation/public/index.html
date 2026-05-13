@@ -80,6 +80,7 @@
       .btn-step2 { background: var(--accent2); }
       .btn-step3 { background: #7a4a8f; }
       .btn-step4 { background: #8f2a5a; }
+      .btn-step5 { background: #5a3a1a; }
 
       .grid2 {
         display: grid;
@@ -289,6 +290,58 @@
           </div>
         </div>
       </div>
+
+      <!-- Step 5 -->
+      <div class="card">
+        <h2>Step 5 — Acquire Agent User token</h2>
+        <p>Acquire a token for an agent acting on behalf of a specific user using a federated identity credential (<code>user_fic</code> grant).</p>
+
+        <h3 style="font-size:14px;margin:0 0 10px">Step 5a — Get owner agent id token</h3>
+        <label>POST URL</label>
+        <div id="step5aUrl" class="url-box">Resolving...</div>
+        <label>Request body</label>
+        <div id="step5aBody" class="url-box">Waiting for Step 2...</div>
+        <button class="btn-step5" id="btnStep5a">Get owner agent id token</button>
+        <div id="step5aError" class="error-box"></div>
+        <div class="grid2" style="margin-bottom:14px">
+          <div>
+            <label>Raw token</label>
+            <textarea id="step5aTokenRaw" readonly placeholder="Owner agent id token appears here"></textarea>
+          </div>
+          <div>
+            <label>Decoded token body</label>
+            <textarea id="step5aDecoded" readonly placeholder="Decoded body appears here"></textarea>
+          </div>
+        </div>
+
+        <h3 style="font-size:14px;margin:0 0 8px;border-top:1px solid var(--border);padding-top:12px">Step 5b — Acquire Agent User token</h3>
+        <label>POST URL</label>
+        <div id="step5Url" class="url-box">Resolving...</div>
+        <div class="row2" style="margin-bottom:0">
+          <div>
+            <label>Scope <small style="font-weight:normal;opacity:.7">(default: Mail.Read)</small></label>
+            <input id="step5Scope" type="text" value="Mail.Read" />
+          </div>
+          <div>
+            <label>Username <small style="font-weight:normal;opacity:.7">(default: agent4aUser@beitmerari2.com)</small></label>
+            <input id="step5Username" type="text" value="agent4aUser@beitmerari2.com" />
+          </div>
+        </div>
+        <label>Request body</label>
+        <div id="step5Body" class="url-box">Waiting for Step 2 and Step 5a...</div>
+        <button class="btn-step5" id="btnStep5">Get Agent User token</button>
+        <div id="step5Error" class="error-box"></div>
+        <div class="grid2">
+          <div>
+            <label>Raw token</label>
+            <textarea id="step5Token" readonly placeholder="Agent user token appears here"></textarea>
+          </div>
+          <div>
+            <label>Decoded token body</label>
+            <textarea id="step5Decoded" readonly placeholder="Decoded body appears here"></textarea>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script>
@@ -303,7 +356,9 @@
       let resolvedEndpoint    = "";
       let step1Assertion      = "";
       let step2BlueprintToken = "";
+      let step3AgentToken     = "";
       let step4UserToken      = "";  // OBO1 access_as_user token
+      let step5aToken         = "";
 
       function showError(boxId, data) {
         const box = $(boxId);
@@ -363,12 +418,15 @@
       }
 
       [inManagedIdentityId, inBlueprintAppId, inTenantId, inAgentObjectId].forEach(el => {
-        el.addEventListener("input", () => { buildStep1Url(); buildStep2Preview(); buildStep3Preview(); buildStep4Obo1Preview(); buildStep4Preview(); });
+        el.addEventListener("input", () => { buildStep1Url(); buildStep2Preview(); buildStep3Preview(); buildStep4Obo1Preview(); buildStep4Preview(); buildStep5aPreview(); buildStep5bPreview(); });
       });
 
       inHostingAppSecret.addEventListener("input", () => { buildStep4Obo1Preview(); });
 
       $('step4Scope').addEventListener('input', buildStep4Preview);
+
+      $('step5Scope').addEventListener('input', buildStep5bPreview);
+      $('step5Username').addEventListener('input', buildStep5bPreview);
 
       fetch("/api/config")
         .then(r => r.json())
@@ -385,8 +443,45 @@
           buildStep3Preview();
           buildStep4Obo1Preview();
           buildStep4Preview();
+          buildStep5aPreview();
+          buildStep5bPreview();
         })
         .catch(() => { $("step1Url").textContent = "Failed to load config from server."; });
+
+      function buildStep5aPreview() {
+        const tid = inTenantId.value.trim();
+        const aid = inAgentObjectId.value.trim();
+        if (!tid || !aid) { $('step5aUrl').textContent = 'Enter Tenant ID and Agent Object ID above.'; $('step5aBody').textContent = ''; return; }
+        $('step5aUrl').textContent = 'POST https://login.microsoftonline.com/' + tid + '/oauth2/v2.0/token';
+        const bodyLines = [
+          'client_id=' + aid,
+          '&scope=api://AzureADTokenExchange/.default',
+          '&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+          '&client_assertion=' + (step2BlueprintToken ? step2BlueprintToken.substring(0, 40) + '...' : '<run Step 2 first>'),
+          '&grant_type=client_credentials'
+        ];
+        $('step5aBody').textContent = bodyLines.join('\n');
+      }
+
+      function buildStep5bPreview() {
+        const tid = inTenantId.value.trim();
+        const aid = inAgentObjectId.value.trim();
+        const scope = $('step5Scope').value.trim() || 'Mail.Read';
+        const username = $('step5Username').value.trim() || 'agent4aUser@beitmerari2.com';
+        if (!tid || !aid) { $('step5Url').textContent = 'Enter Tenant ID and Agent Object ID above.'; $('step5Body').textContent = ''; return; }
+        $('step5Url').textContent = 'POST https://login.microsoftonline.com/' + tid + '/oauth2/v2.0/token';
+        const bodyLines = [
+          'client_id=' + aid,
+          '&scope=' + scope,
+          '&client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+          '&client_assertion=' + (step2BlueprintToken ? step2BlueprintToken.substring(0, 40) + '...' : '<run Step 2 first>'),
+          '&user_federated_identity_credential=' + (step5aToken ? step5aToken.substring(0, 40) + '...' : '<run Step 5a first>'),
+          '&username=' + username,
+          '&grant_type=user_fic',
+          '&requested_token_use=on_behalf_of'
+        ];
+        $('step5Body').textContent = bodyLines.join('\n');
+      }
 
       $("btnStep1").addEventListener("click", async () => {
         clearError("step1Error");
@@ -408,9 +503,81 @@
           $("step1Decoded").value = JSON.stringify(d.decoded, null, 2);
           step1Assertion          = d.token;
           buildStep2Preview();
+          buildStep5aPreview();
         } catch (e) {
           $("step1Token").value = "";
           showError("step1Error", { error: String(e) });
+        }
+      });
+
+      $('btnStep5a').addEventListener('click', async () => {
+        clearError('step5aError');
+        $('step5aTokenRaw').value  = 'Requesting...';
+        $('step5aDecoded').value   = '';
+        step5aToken = '';
+        buildStep5bPreview();
+
+        if (!step2BlueprintToken) {
+          showError('step5aError', { error: 'Run Step 2 first to obtain the blueprint token.' });
+          $('step5aTokenRaw').value = ''; return;
+        }
+
+        try {
+          const r = await fetch('/api/step5a', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tenantId:      inTenantId.value.trim(),
+              agentObjectId: inAgentObjectId.value.trim(),
+              assertion:     step2BlueprintToken
+            })
+          });
+          const d = await r.json();
+          if (!r.ok) { $('step5aTokenRaw').value = ''; showError('step5aError', d); return; }
+          $('step5aTokenRaw').value = d.token;
+          $('step5aDecoded').value  = JSON.stringify(d.decoded, null, 2);
+          step5aToken = d.token;
+          buildStep5bPreview();
+        } catch (e) {
+          $('step5aTokenRaw').value = '';
+          showError('step5aError', { error: String(e) });
+        }
+      });
+
+      $('btnStep5').addEventListener('click', async () => {
+        clearError('step5Error');
+        $('step5Token').value   = 'Requesting...';
+        $('step5Decoded').value = '';
+
+        if (!step2BlueprintToken) {
+          showError('step5Error', { error: 'Run Step 2 first to obtain the blueprint token.' });
+          $('step5Token').value = ''; return;
+        }
+        if (!step5aToken) {
+          showError('step5Error', { error: 'Run Step 5a first to obtain the owner agent id token.' });
+          $('step5Token').value = ''; return;
+        }
+
+        try {
+          const r = await fetch('/api/step5', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tenantId:      inTenantId.value.trim(),
+              agentObjectId: inAgentObjectId.value.trim(),
+              assertion:     step2BlueprintToken,
+              agentToken:    step5aToken,
+              scope:         $('step5Scope').value.trim() || 'Mail.Read',
+              username:      $('step5Username').value.trim() || 'agent4aUser@beitmerari2.com'
+            })
+          });
+          const d = await r.json();
+          if (!r.ok) { $('step5Token').value = ''; showError('step5Error', d); return; }
+          $('step5Token').value   = d.token;
+          $('step5Decoded').value = JSON.stringify(d.decoded, null, 2);
+        } catch (e) {
+          $('step5Token').value = '';
+          showError('step5Error', { error: String(e) });
         }
       });
 
@@ -419,6 +586,8 @@
         $("step2Token").value   = "Requesting...";
         $("step2Decoded").value = "";
         step2BlueprintToken = "";
+        step3AgentToken     = "";
+        step5aToken         = "";
         buildStep3Preview();
 
         if (!step1Assertion) {
@@ -446,6 +615,8 @@
           buildStep3Preview();
           buildStep4Obo1Preview();
           buildStep4Preview();
+          buildStep5aPreview();
+          buildStep5bPreview();
         } catch (e) {
           $("step2Token").value = "";
           showError("step2Error", { error: String(e) });
@@ -529,6 +700,8 @@
           if (!r.ok) { $("step3Token").value = ""; showError("step3Error", d); return; }
           $("step3Token").value   = d.token;
           $("step3Decoded").value = JSON.stringify(d.decoded, null, 2);
+          step3AgentToken         = d.token;
+          buildStep5aPreview();
         } catch (e) {
           $("step3Token").value = "";
           showError("step3Error", { error: String(e) });

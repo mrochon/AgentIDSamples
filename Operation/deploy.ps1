@@ -74,10 +74,6 @@ try {
   Remove-Item -Recurse -Force $tempDir
 }
 
-Write-Host "Deploying app content (server will install dependencies)..."
-az webapp deploy --resource-group $ResourceGroup --name $AppName --src-path $zipPath --type zip --async true | Out-Null
-Write-Host "Waiting for deployment to complete..."
-Start-Sleep -Seconds 60
-az webapp start --resource-group $ResourceGroup --name $AppName | Out-Null
-
+Write-Host "Deploying app content..."
+az webapp deploy --resource-group $ResourceGroup --name $AppName --src-path $zipPath --type zip | Out-Null
 Write-Host "Deployment complete."

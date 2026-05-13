@@ -3,6 +3,9 @@ const path = require("path");
 const http = require("http");
 const https = require("https");
 
+// Load .env for local development (no-op if file is absent, as on Azure App Service)
+require("dotenv").config();
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -240,6 +243,67 @@ app.post("/api/step4", async (req, res) => {
     return res.json({ token: body.access_token, decoded: decodeJwt(body.access_token) });
   } catch (err) {
     return res.status(500).json({ error: "Step 4 failed.", details: { message: err.message, stack: err.stack } });
+  }
+});
+
+app.post("/api/step5a", async (req, res) => {
+  try {
+    const { tenantId, agentObjectId, assertion } = req.body;
+    if (!tenantId || !agentObjectId || !assertion) {
+      return res.status(400).json({ error: "Missing required fields: tenantId, agentObjectId, assertion." });
+    }
+
+    const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+    const form = new URLSearchParams({
+      client_id:             agentObjectId,
+      scope:                 "api://AzureADTokenExchange/.default",
+      client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+      client_assertion:      assertion,
+      grant_type:            "client_credentials"
+    });
+
+    console.log("Step 5a POST:", tokenUrl);
+    const { statusCode, body } = await httpPost(tokenUrl, form.toString());
+    console.log("Step 5a response:", statusCode);
+
+    if (statusCode !== 200 || !body.access_token) {
+      return res.status(500).json({ error: "Step 5a failed.", details: { statusCode, raw: body } });
+    }
+    return res.json({ token: body.access_token, decoded: decodeJwt(body.access_token) });
+  } catch (err) {
+    return res.status(500).json({ error: "Step 5a failed.", details: { message: err.message, stack: err.stack } });
+  }
+});
+
+app.post("/api/step5", async (req, res) => {
+  try {
+    const { tenantId, agentObjectId, assertion, agentToken, scope, username } = req.body;
+    if (!tenantId || !agentObjectId || !assertion || !agentToken || !username) {
+      return res.status(400).json({ error: "Missing required fields: tenantId, agentObjectId, assertion, agentToken, username." });
+    }
+
+    const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+    const form = new URLSearchParams({
+      client_id:                          agentObjectId,
+      scope:                              scope || "Mail.Read",
+      client_assertion_type:              "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+      client_assertion:                   assertion,
+      user_federated_identity_credential: agentToken,
+      username:                           username,
+      grant_type:                         "user_fic",
+      requested_token_use:                "on_behalf_of"
+    });
+
+    console.log("Step 5 POST:", tokenUrl);
+    const { statusCode, body } = await httpPost(tokenUrl, form.toString());
+    console.log("Step 5 response:", statusCode);
+
+    if (statusCode !== 200 || !body.access_token) {
+      return res.status(500).json({ error: "Step 5 failed.", details: { statusCode, raw: body } });
+    }
+    return res.json({ token: body.access_token, decoded: decodeJwt(body.access_token) });
+  } catch (err) {
+    return res.status(500).json({ error: "Step 5 failed.", details: { message: err.message, stack: err.stack } });
   }
 });
 
