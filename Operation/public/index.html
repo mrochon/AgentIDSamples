@@ -255,6 +255,8 @@
         <h3 style="font-size:14px;margin:0 0 8px;border-top:1px solid var(--border);padding-top:12px">Step 4b — OBO Call 2 — Acquire agent token using access_as_user token</h3>
         <label>POST URL</label>
         <div id="step4Url" class="url-box">Resolving...</div>
+        <label>Scope <small style="font-weight:normal;opacity:.7">(override the requested scope)</small></label>
+        <input id="step4Scope" type="text" value="https://graph.microsoft.com/mail.read" />
         <label>Request body</label>
         <div id="step4Body" class="url-box">Waiting for Step 2 and OBO Call 1...</div>
         <button class="btn-step4" id="btnStep4">Get OBO agent token</button>
@@ -348,6 +350,8 @@
       });
 
       inHostingAppSecret.addEventListener("input", () => { buildStep4Obo1Preview(); });
+
+      $('step4Scope').addEventListener('input', buildStep4Preview);
 
       fetch("/api/config")
         .then(r => r.json())
@@ -477,7 +481,7 @@
           "&client_assertion=" + (step2BlueprintToken ? step2BlueprintToken.substring(0, 40) + "..." : "<run Step 2 first>"),
           "&assertion=" + (step4UserToken ? step4UserToken.substring(0, 40) + "... (OBO1 access_as_user token)" : "<run OBO Call 1 above>"),
           "&requested_token_use=on_behalf_of",
-          "&scope=https://graph.microsoft.com/mail.read"
+          "&scope=" + ($('step4Scope').value.trim() || "https://graph.microsoft.com/mail.read")
         ];
         $("step4Body").textContent = bodyLines4.join("\n");
       }

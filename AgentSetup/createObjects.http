@@ -318,6 +318,19 @@ Content-Type: application/x-www-form-urlencoded
 
 client_id={{$dotenv PUBLIC_CLIENT_ID}}&grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code={{getTokenForUser.response.body.device_code}}
 
+### -----------------------------------------------------------------------------------
+# @name createAgentUser
+POST https://graph.microsoft.com/v1.0/users/microsoft.graph.agentUser
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+{
+  "accountEnabled": true,
+  "displayName": "Agent 5 Sales Agent",
+  "mailNickname": "SalesAgent",
+  "userPrincipalName": "salesagent@beitmerari2.com",
+  "identityParentId": "{{listAgentsForBlueprint.response.body.value[0].id}}"
+}
 
 ### -------------------------------------------------------------------------------
 ### Cleanup

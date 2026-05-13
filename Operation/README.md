@@ -24,10 +24,22 @@ az deployment group create \
 
 After deployment, assign Microsoft Graph API permissions to the managed identity in Entra ID if needed, then browse to the Web App URL output.
 
-Blueprint V5 created with V1.0 API
-"appId": "dfb733ac-fa70-4537-a10f-3def3bcc00c6"
-SP "id": "1aaac0d4-0812-4ab9-8ba7-663779a2549e"
+```
+az login --tenant <your tenant>
 
-Agent:
+# Full deployment (infrastructure + app code) — run when main.bicep changes
+cd Operation
+.\deploy.ps1  -ResourceGroup <rg> -AppName <app name from bicep>
 
-      "id": "8d07d2d1-2c3c-4199-82e6-7690d6b7b1e8"
+# App code only — run when only server.js / public/* / package.json change
+.\deploy.ps1  -ResourceGroup <rg> -AppName <app name from bicep> -AppOnly
+```
+
+Example:
+```
+cd Operation
+.\deploy.ps1  -ResourceGroup agentid -AppName operation-web-igzu6xvzldpys
+.\deploy.ps1  -ResourceGroup agentid -AppName operation-web-igzu6xvzldpys -AppOnly
+```
+
+.\deploy.ps1 -ResourceGroup <rg> -AppName <appName> -AppOnly
