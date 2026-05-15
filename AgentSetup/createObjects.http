@@ -63,6 +63,10 @@ Authorization: Bearer {{login.response.body.access_token}}
 				{
 					"id": "570282fd-fa5c-430d-a7fd-fc8dc98a9dca",
 					"type": "Scope"
+				},
+                {
+					"id": "df021288-bdef-4463-88db-98f22de89214",
+					"type": "Role"
 				}
 			]
 		}
@@ -83,14 +87,14 @@ Authorization: Bearer {{login.response.body.access_token}}
 
 ### ====================================== applicationUri is required for the blueprint to work, even though the documentation does not mention this requirement. The applicationUri can be any unique URI, it does not have to be a real URI. It is recommended to use a URI that is related to the appId for easier identification, for example: "api://{appId}".
 # @name assignApplicationUri
-PATCH https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[3].id}}/microsoft.graph.agentIdentityBlueprint
+PATCH https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[2].id}}/microsoft.graph.agentIdentityBlueprint
 OData-Version: 4.0
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
 
 {
     "identifierUris": [
-        "api://{{listBlueprints.response.body.value[3].id}}"
+        "api://{{listBlueprints.response.body.value[2].id}}"
     ]
 }
 
@@ -128,11 +132,10 @@ Authorization: Bearer {{login.response.body.access_token}}
 ###
 
 # @name listServicePrincipal4Blueprint
-GET https://graph.microsoft.com/v1.0/serviceprincipals/graph.agentIdentityBlueprintPrincipal?$filter=appId eq '{{listBlueprints.response.body.value[3].id}}'
+GET https://graph.microsoft.com/v1.0/serviceprincipals/graph.agentIdentityBlueprintPrincipal?$filter=appId eq '{{listBlueprints.response.body.value[2].id}}'
 OData-Version: 4.0
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
-
 
 ###====================== CREDENTIALS ===========================================================
 # Create credentials for this app. Needs Application.ReadWrite.OwnedBy
@@ -239,7 +242,7 @@ Authorization: Bearer {{blueprintLogin.response.body.access_token}}
 
 ###
 # @name listAgentsForBlueprint
-GET https://graph.microsoft.com/v1.0/servicePrincipals/microsoft.graph.agentIdentity?$filter=agentIdentityBlueprintId eq '{{listBlueprints.response.body.value[3].id}}'
+GET https://graph.microsoft.com/v1.0/servicePrincipals/microsoft.graph.agentIdentity?$filter=agentIdentityBlueprintId eq '{{listBlueprints.response.body.value[2].id}}'
 Authorization: Bearer {{login.response.body.access_token}}
 
 ###
@@ -258,6 +261,18 @@ Authorization: Bearer {{login.response.body.access_token}}
   "consentType": "AllPrincipals",
   "resourceId": "{{getGraphAPIServicePrincipalId.response.body.id}}",
   "scope": "Mail.Read User.Read"
+}
+
+###
+# @name grantConsentToApplicationPermissions
+POST https://graph.microsoft.com/v1.0/servicePrincipals/{{listAgentsForBlueprint.response.body.value[1].id}}/appRoleAssignments
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+{
+  "principalId": "{{listAgentsForBlueprint.response.body.value[1].id}}",
+  "resourceId": "{{getGraphAPIServicePrincipalId.response.body.id}}",   // Microsoft Graph SP
+  "appRoleId": "df021288-bdef-4463-88db-98f22de89214"   // e.g., User.Read.All
 }
 
 ###
