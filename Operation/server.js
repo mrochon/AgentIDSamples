@@ -113,9 +113,12 @@ app.get("/api/step1", async (req, res) => {
 // Step 2 — POST assertion to Entra to get a blueprint app token
 app.post("/api/step2", async (req, res) => {
   try {
-    const { tenantId, blueprintAppId, agentObjectId, assertion } = req.body;
-    if (!tenantId || !blueprintAppId || !assertion) {
-      return res.status(400).json({ error: "Missing required fields: tenantId, blueprintAppId, assertion." });
+    const { tenantId, blueprintAppId, agentObjectId, assertion, clientSecret } = req.body;
+    if (!tenantId || !blueprintAppId) {
+      return res.status(400).json({ error: "Missing required fields: tenantId, blueprintAppId." });
+    }
+    if (!assertion && !clientSecret) {
+      return res.status(400).json({ error: "Missing authentication for Step 2. Provide either assertion or clientSecret." });
     }
 
     const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
@@ -123,10 +126,14 @@ app.post("/api/step2", async (req, res) => {
       grant_type:            "client_credentials",
       client_id:             blueprintAppId,
       scope:                 "api://AzureADTokenExchange/.default",
-      client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-      client_assertion:      assertion,
       fmi_path:              agentObjectId || blueprintAppId
     });
+    if (clientSecret) {
+      form.set("client_secret", clientSecret);
+    } else {
+      form.set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer");
+      form.set("client_assertion", assertion);
+    }
 
     console.log("Step 2 POST:", tokenUrl);
     const { statusCode, body } = await httpPost(tokenUrl, form.toString());

@@ -166,7 +166,11 @@
       <!-- Step 1 -->
       <div class="card">
         <h2>Step 1 — Get MI token</h2>
-        <p>Identifies the host, here via Managed Identity</p>
+        <p>Identifies the host using Managed Identity. Skip to use client secret</p>
+        <label style="display:flex;align-items:center;gap:8px;margin:10px 0 12px;font-size:13px;font-weight:normal;color:#444">
+          <input id="skipStep1" type="checkbox" style="margin:0" />
+          Skip Step 1 and use client secret in Step 2
+        </label>
         <label>Request URL</label>
         <div id="step1Url" class="url-box">Resolving...</div>
         <button class="btn-step1" id="btnStep1">Get MI token</button>
@@ -187,6 +191,10 @@
       <div class="card">
         <h2>Step 2 — Get Blueprint token</h2>
         <p>Get blueprint token with permissions to operate on a specific agent instance (fmi_path)</p>
+        <div id="step2ClientSecretWrap" style="display:none;margin-bottom:10px">
+          <label>Client secret</label>
+          <input id="step2ClientSecret" type="password" placeholder="Client secret for BLUEPRINT_APP_ID" />
+        </div>
         <label>POST URL</label>
         <div id="step2Url" class="url-box">Resolving...</div>
         <label>Request body</label>
@@ -352,6 +360,8 @@
       const inTenantId          = $("tenantId");
       const inAgentObjectId      = $("agentObjectId");
       const inHostingAppSecret   = $("hostingAppSecret");
+      const inSkipStep1          = $("skipStep1");
+      const inStep2ClientSecret  = $("step2ClientSecret");
 
       let resolvedEndpoint    = "";
       let step1Assertion      = "";
@@ -404,17 +414,37 @@
         const tid = inTenantId.value.trim();
         const bid = inBlueprintAppId.value.trim();
         const fmi = inAgentObjectId.value.trim();
+        const skipStep1 = inSkipStep1.checked;
         if (!tid || !bid) { $("step2Url").textContent = "Enter Tenant ID and BLUEPRINT_APP_ID above."; $("step2Body").textContent = ""; return; }
         $("step2Url").textContent = "POST https://login.microsoftonline.com/" + tid + "/oauth2/v2.0/token";
         const bodyLines = [
           "grant_type=client_credentials",
           "client_id=" + (bid || "<blueprintAppId>"),
-          "scope=api://AzureADTokenExchange/.default",
-          "client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-          "client_assertion=" + (step1Assertion ? step1Assertion.substring(0, 40) + "..." : "<run Step 1 first>"),
-          "fmi_path=" + (fmi || "<agentObjectId>")
+          "scope=api://AzureADTokenExchange/.default"
         ];
+        if (skipStep1) {
+          bodyLines.push("client_secret=" + (inStep2ClientSecret.value.trim() ? "***" : "<enter Step 2 client secret>"));
+        } else {
+          bodyLines.push("client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer");
+          bodyLines.push("client_assertion=" + (step1Assertion ? step1Assertion.substring(0, 40) + "..." : "<run Step 1 first>"));
+        }
+        bodyLines.push("fmi_path=" + (fmi || "<agentObjectId>"));
         $("step2Body").textContent = bodyLines.join("\n");
+      }
+
+      function onSkipStep1Changed() {
+        const skipStep1 = inSkipStep1.checked;
+        $("step2ClientSecretWrap").style.display = skipStep1 ? "block" : "none";
+        $("btnStep1").disabled = skipStep1;
+        $("btnStep1").style.opacity = skipStep1 ? "0.6" : "1";
+        $("btnStep1").title = skipStep1 ? "Step 1 is skipped when this option is checked." : "";
+        if (skipStep1) {
+          step1Assertion = "";
+          $("step1Token").value = "";
+          $("step1Decoded").value = "";
+          clearError("step1Error");
+        }
+        buildStep2Preview();
       }
 
       [inManagedIdentityId, inBlueprintAppId, inTenantId, inAgentObjectId].forEach(el => {
@@ -422,6 +452,8 @@
       });
 
       inHostingAppSecret.addEventListener("input", () => { buildStep4Obo1Preview(); });
+      inStep2ClientSecret.addEventListener("input", buildStep2Preview);
+      inSkipStep1.addEventListener("change", onSkipStep1Changed);
 
       $('step4Scope').addEventListener('input', buildStep4Preview);
 
@@ -445,6 +477,7 @@
           buildStep4Preview();
           buildStep5aPreview();
           buildStep5bPreview();
+          onSkipStep1Changed();
         })
         .catch(() => { $("step1Url").textContent = "Failed to load config from server."; });
 
@@ -589,9 +622,15 @@
         step3AgentToken     = "";
         step5aToken         = "";
         buildStep3Preview();
+        const skipStep1 = inSkipStep1.checked;
 
-        if (!step1Assertion) {
-          showError("step2Error", { error: "Run Step 1 first to obtain the assertion token." });
+        if (!skipStep1 && !step1Assertion) {
+          showError("step2Error", { error: "Run Step 1 first to obtain the assertion token, or check 'Skip Step 1' and provide a client secret." });
+          $("step2Token").value = "";
+          return;
+        }
+        if (skipStep1 && !inStep2ClientSecret.value.trim()) {
+          showError("step2Error", { error: "Enter a client secret for Step 2 when 'Skip Step 1' is enabled." });
           $("step2Token").value = "";
           return;
         }
@@ -604,7 +643,8 @@
               tenantId:       inTenantId.value.trim(),
               blueprintAppId: inBlueprintAppId.value.trim(),
               agentObjectId:  inAgentObjectId.value.trim(),
-              assertion:      step1Assertion
+              assertion:      skipStep1 ? "" : step1Assertion,
+              clientSecret:   skipStep1 ? inStep2ClientSecret.value.trim() : ""
             })
           });
           const d = await r.json();
