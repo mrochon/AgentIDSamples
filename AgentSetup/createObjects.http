@@ -103,7 +103,7 @@ Authorization: Bearer {{login.response.body.access_token}}
 ###
 # NOTE: you still need to grant these OAuth2 permissions via the Portal consent: Enterpise App->Search by id->Permissions->Grant admin consent
 # @name addInheritablePermissions
-POST https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[3].id}}/microsoft.graph.agentIdentityBlueprint/inheritablePermissions
+POST https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[2].id}}/microsoft.graph.agentIdentityBlueprint/inheritablePermissions
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
 
@@ -126,7 +126,7 @@ Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
 
 {
-    "appId": "{{listBlueprints.response.body.value[3].id}}"
+    "appId": "{{listBlueprints.response.body.value[2].id}}"
 }
 
 ###
@@ -142,7 +142,7 @@ Authorization: Bearer {{login.response.body.access_token}}
 # Recommended: use MI as federated credetial: https://github.com/MicrosoftDocs/entra-docs/blob/main/docs/agent-id/identity-platform/create-blueprint.md#microsoft-graph-api-2
 # use {{createBlueprintCredential.response.body.secretText}} to reference the created secret
 # @name createBlueprintPasswordCredential
-POST https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[3].id}}/addPassword
+POST https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[2].id}}/addPassword
 OData-Version: 4.0
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
@@ -155,7 +155,7 @@ Authorization: Bearer {{login.response.body.access_token}}
 ###
 
 # @name listBlueprintPasswordCredentials
-GET https://graph.microsoft.com/beta/applications/{{listBlueprints.response.body.value[3].id}}/passwordCredentials
+GET https://graph.microsoft.com/beta/applications/{{listBlueprints.response.body.value[2].id}}/passwordCredentials
 OData-Version: 4.0
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
@@ -165,7 +165,7 @@ Authorization: Bearer {{login.response.body.access_token}}
 ###
 
 # @name removePassword
-POST https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[3].id}}/removePassword
+POST https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[2].id}}/removePassword
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
 
@@ -181,7 +181,7 @@ Authorization: Bearer {{login.response.body.access_token}}
 # https://learn.microsoft.com/en-us/entra/agent-id/identity-platform/create-blueprint?tabs=microsoft-graph-api#configure-credentials-for-the-agent-identity-blueprint
 # Subject id=Managed Identity Object ID!!!
 # @name createFederatedCredential
-POST https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[3].id}}/federatedIdentityCredentials/
+POST https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[2].id}}/federatedIdentityCredentials/
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
 
@@ -196,13 +196,13 @@ Authorization: Bearer {{login.response.body.access_token}}
 
 ###
 # @name listFederatedIdentityCredentials
-GET https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[3].id}}/federatedIdentityCredentials
+GET https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[2].id}}/federatedIdentityCredentials
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
 
 ###
 # @name deleteFederatedIdentityCredential
-DELETE https://graph.microsoft.com/beta/applications/{{listBlueprints.response.body.value[3].id}}/federatedIdentityCredentials/{{listFederatedIdentityCredentials.response.body.value[0].id}} 
+DELETE https://graph.microsoft.com/beta/applications/{{listBlueprints.response.body.value[2].id}}/federatedIdentityCredentials/{{listFederatedIdentityCredentials.response.body.value[0].id}} 
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
 
@@ -213,7 +213,7 @@ Authorization: Bearer {{login.response.body.access_token}}
 POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
 Content-Type: application/x-www-form-urlencoded
 
-client_id={{listBlueprints.response.body.value[3].appId}}&client_secret={{createBlueprintPasswordCredential.response.body.secretText}}&scope=https://graph.microsoft.com/.default&grant_type=client_credentials
+client_id={{listBlueprints.response.body.value[2].appId}}&client_secret={{createBlueprintPasswordCredential.response.body.secretText}}&scope=https://graph.microsoft.com/.default&grant_type=client_credentials
 
 ###
 # Create agent; must be blueprint app; CreateAsManager permission was not assigned!
@@ -224,7 +224,7 @@ Authorization: Bearer {{blueprintLogin.response.body.access_token}}
 
 {
   "displayName": "Agent V5",
-  "agentIdentityBlueprintId": "{{listBlueprints.response.body.value[3].appId}}",
+  "agentIdentityBlueprintId": "{{listBlueprints.response.body.value[2].appId}}",
   "sponsors@odata.bind": [
     "https://graph.microsoft.com/v1.0/users/{{$dotenv USER_OBJECT_ID}}"
   ]
@@ -290,7 +290,7 @@ Authorization: Bearer {{login.response.body.access_token}}
 {
   "principalId": "{{$dotenv USER_OBJECT_ID}}",
   "resourceId": "{{createBlueprintServicePrincipal.response.body.id}}",
-  "appRoleId": "{{listBlueprints.response.body.value[3].appRoles[0].id}}"
+  "appRoleId": "{{listBlueprints.response.body.value[2].appRoles[0].id}}"
 }
 
 # Keeping this for documentation. Do not use.
@@ -300,7 +300,7 @@ Authorization: Bearer {{login.response.body.access_token}}
 POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
 Content-Type: application/x-www-form-urlencoded
 
-client_id={{listBlueprints.response.body.value[3].appId}}&
+client_id={{listBlueprints.response.body.value[2].appId}}&
 client_secret={{createBlueprintPasswordCredential.response.body.secretText}}&
 scope=api://AzureADTokenExchange/.default&
 grant_type=client_credentials&
@@ -356,12 +356,12 @@ Authorization: Bearer {{login.response.body.access_token}}
 
 ### 
 # @name deleteServicePrincipalForBlueprint
-DELETE https://graph.microsoft.com/v1.0/servicePrincipals/{{listBlueprintServicePrincipals.response.body.value[3].id}}
+DELETE https://graph.microsoft.com/v1.0/servicePrincipals/{{listBlueprintServicePrincipals.response.body.value[2].id}}
 Authorization: Bearer {{login.response.body.access_token}}
 
 ###
 # @name deleteBlueprint
-DELETE https://graph.microsoft.com/beta/applications/{{listBlueprints.response.body.value[3].id}}/microsoft.graph.agentIdentityBlueprint
+DELETE https://graph.microsoft.com/beta/applications/{{listBlueprints.response.body.value[2].id}}/microsoft.graph.agentIdentityBlueprint
 Authorization: Bearer {{login.response.body.access_token}}
 
 
