@@ -9,6 +9,7 @@ param tenantId string = '1165490c-89b5-463b-b203-8b77e01597d2'
 param blueprintAppId string = 'dbbbac41-d18e-4450-a75a-d49fa0950d9a'
 @secure()
 param hostingAppSecret string = ''
+param agentUserUpn string = ''
 
 resource userAssignedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   name: identityName
@@ -72,6 +73,10 @@ resource webApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'HOSTING_APP_SECRET'
           value: hostingAppSecret
+        }
+        {
+          name: 'AGENT_USER_UPN'
+          value: agentUserUpn
         }
         {
           name: 'TENANT_ID'

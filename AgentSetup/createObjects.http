@@ -98,10 +98,27 @@ Authorization: Bearer {{login.response.body.access_token}}
     ]
 }
 
-###
+### Add all scopes and roles inheritance for MS Graph
+# @name allowGraphPermissionsInheritance
+POST https://graph.microsoft.com/v1.0/applications/microsoft.graph.agentIdentityBlueprint/{{listBlueprints.response.body.value[0].appId}}/inheritablePermissions
+Content-Type: application/json
+OData-Version: 4.0
+Authorization: Bearer {{login.response.body.access_token}}
+
+{
+  "resourceAppId": "00000003-0000-0000-c000-000000000000",
+  "inheritableScopes": {
+    "@odata.type": "#microsoft.graph.allAllowedScopes",
+    "kind": "allAllowed"
+  },
+  "inheritableRoles": {
+    "@odata.type": "#microsoft.graph.allAllowedRoles",
+    "kind": "allAllowed"
+  }
+}
 
 ###
-# NOTE: you still need to grant these OAuth2 permissions via the Portal consent: Enterpise App->Search by id->Permissions->Grant admin consent
+# NOTE: these scopes must also be consented on the blueprint principal. Blueprints are NOT listed under Enterprise apps; use Entra admin center -> Entra ID -> Agents -> Agent blueprints (search by name/object ID, or add the 'Blueprint App ID' filter) -> Granted permissions (view only per docs; see getPermissionGrantsForBlueprintPrincipal to check via API)
 # @name addInheritablePermissions
 POST https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[0].id}}/microsoft.graph.agentIdentityBlueprint/inheritablePermissions
 Content-Type: application/json
@@ -137,9 +154,15 @@ OData-Version: 4.0
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
 
+###
+# Delegated permissions consented on the blueprint principal. Inheritable permissions only take effect if the blueprint principal has consent for them.
+# @name getPermissionGrantsForBlueprintPrincipal
+GET https://graph.microsoft.com/v1.0/servicePrincipals/{{listServicePrincipal4Blueprint.response.body.value[0].id}}/oauth2PermissionGrants
+Authorization: Bearer {{login.response.body.access_token}}
+
 ###====================== CREDENTIALS ===========================================================
-# Create credentials for this app. Needs Application.ReadWrite.OwnedBy
-# Recommended: use MI as federated credetial: https://github.com/MicrosoftDocs/entra-docs/blob/main/docs/agent-id/identity-platform/create-blueprint.md#microsoft-graph-api-2
+# Create credentials for this app so it can login to create agents from this client (Needs Application.ReadWrite.OwnedBy)
+# Recommended: Run agent creation from an Azure-hosted process so it can use MI as federated credetial: https://github.com/MicrosoftDocs/entra-docs/blob/main/docs/agent-id/identity-platform/create-blueprint.md#microsoft-graph-api-2
 # use {{createBlueprintCredential.response.body.secretText}} to reference the created secret
 # @name createBlueprintPasswordCredential
 POST https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[0].id}}/addPassword
@@ -160,7 +183,6 @@ OData-Version: 4.0
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
 
-###
 
 ###
 
@@ -194,6 +216,8 @@ Authorization: Bearer {{login.response.body.access_token}}
     ]
 }
 
+# IMPORTANT: save the created secretText from the response in the .env file to use in future runs as it exists during this run.
+
 ###
 # @name listFederatedIdentityCredentials
 GET https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[0].id}}/federatedIdentityCredentials
@@ -213,7 +237,7 @@ Authorization: Bearer {{login.response.body.access_token}}
 POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
 Content-Type: application/x-www-form-urlencoded
 
-client_id={{listBlueprints.response.body.value[0].appId}}&client_secret={{createBlueprintPasswordCredential.response.body.secretText}}&scope=https://graph.microsoft.com/.default&grant_type=client_credentials
+client_id={{listBlueprints.response.body.value[0].appId}}&client_secret={{$dotenv BLUEPRINT_PWD_CREDENTIAL}}&scope=https://graph.microsoft.com/.default&grant_type=client_credentials
 
 ###
 # Create agent; must be blueprint app; CreateAsManager permission was not assigned!
@@ -223,7 +247,7 @@ Content-Type: application/json
 Authorization: Bearer {{blueprintLogin.response.body.access_token}}
 
 {
-  "displayName": "Agent V5",
+  "displayName": "Agent 001",
   "agentIdentityBlueprintId": "{{listBlueprints.response.body.value[0].appId}}",
   "sponsors@odata.bind": [
     "https://graph.microsoft.com/v1.0/users/{{$dotenv USER_OBJECT_ID}}"
@@ -237,13 +261,37 @@ Authorization: Bearer {{login.response.body.access_token}}
 
 ###
 # @name deleteAgent
-DELETE https://graph.microsoft.com/v1.0/servicePrincipals/{{listAllAgents.response.body.value[5].id}}
+DELETE https://graph.microsoft.com/v1.0/servicePrincipals/{{listAllAgents.response.body.value[0].id}}
 Authorization: Bearer {{blueprintLogin.response.body.access_token}}
 
 ###
 # @name listAgentsForBlueprint
 GET https://graph.microsoft.com/v1.0/servicePrincipals/microsoft.graph.agentIdentity?$filter=agentIdentityBlueprintId eq '{{listBlueprints.response.body.value[0].id}}'
 Authorization: Bearer {{login.response.body.access_token}}
+
+
+
+###
+# @name getPermissionGrantsForAnAgent
+GET https://graph.microsoft.com/v1.0/servicePrincipals/{{listAgentsForBlueprint.response.body.value[0].id}}/oauth2PermissionGrants
+Authorization: Bearer {{login.response.body.access_token}}
+
+###
+# Delegated permissions (OAuth2 scopes) granted to the first agent
+# @name listDelegatedPermissionsForFirstAgent
+GET https://graph.microsoft.com/v1.0/servicePrincipals/{{listAgentsForBlueprint.response.body.value[0].id}}/oauth2PermissionGrants
+Authorization: Bearer {{login.response.body.access_token}}
+
+###
+# Application permissions (app roles) granted to the first agent
+# @name listApplicationPermissionsForAnAgent
+GET https://graph.microsoft.com/v1.0/servicePrincipals/{{listAgentsForBlueprint.response.body.value[0].id}}/appRoleAssignments
+Authorization: Bearer {{login.response.body.access_token}}
+
+
+
+
+
 
 ###
 # @name getGraphAPIServicePrincipalId
@@ -270,15 +318,10 @@ Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
 
 {
-  "principalId": "{{listAgentsForBlueprint.response.body.value[1].id}}",
+  "principalId": "{{listAgentsForBlueprint.response.body.value[0].id}}",
   "resourceId": "{{getGraphAPIServicePrincipalId.response.body.id}}",   // Microsoft Graph SP
   "appRoleId": "df021288-bdef-4463-88db-98f22de89214"   // e.g., User.Read.All
 }
-
-###
-# @name getPermissionGrantsForAnAgent
-GET https://graph.microsoft.com/v1.0/servicePrincipals/{{listAgentsForBlueprint.response.body.value[1].id}}/oauth2PermissionGrants
-Authorization: Bearer {{login.response.body.access_token}}
 
 ###
 # Or do through portal
@@ -301,7 +344,7 @@ POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
 Content-Type: application/x-www-form-urlencoded
 
 client_id={{listBlueprints.response.body.value[0].appId}}&
-client_secret={{createBlueprintPasswordCredential.response.body.secretText}}&
+client_secret={{$dotenv BLUEPRINT_PWD_CREDENTIAL}}&
 scope=api://AzureADTokenExchange/.default&
 grant_type=client_credentials&
 fmi_path={{listAgentsForBlueprint.response.body.value[0].agentAppId}}

@@ -8,6 +8,7 @@ param(
   [string]$AgentObjectId = "",
   [string]$TenantId              = "",
   [string]$HostingAppSecret      = "",
+  [string]$AgentUserUpn          = "",
   [switch]$AppOnly
 )
 
@@ -15,10 +16,11 @@ $ErrorActionPreference = "Stop"
 
 # Load secrets from .env if present and parameter not supplied
 $envFile = Join-Path $PSScriptRoot ".env"
-if ((Test-Path $envFile) -and -not $HostingAppSecret) {
+if ((Test-Path $envFile) -and (-not $HostingAppSecret -or -not $AgentUserUpn)) {
   Get-Content $envFile | Where-Object { $_ -match '^\s*([^#=]+?)\s*=\s*(.*)\s*$' } | ForEach-Object {
     $key, $val = $Matches[1], $Matches[2]
-    if ($key -eq 'HOSTING_APP_SECRET') { $HostingAppSecret = $val }
+    if ($key -eq 'HOSTING_APP_SECRET' -and -not $HostingAppSecret) { $HostingAppSecret = $val }
+    if ($key -eq 'AGENT_USER_UPN' -and -not $AgentUserUpn) { $AgentUserUpn = $val }
   }
 }
 
@@ -33,6 +35,7 @@ if (-not $AppOnly) {
   if ($AgentObjectId) { $deployParams += "--parameters"; $deployParams += "agentObjectId=$AgentObjectId" }
   if ($TenantId)              { $deployParams += "--parameters"; $deployParams += "tenantId=$TenantId" }
   if ($HostingAppSecret)      { $deployParams += "--parameters"; $deployParams += "hostingAppSecret=$HostingAppSecret" }
+  if ($AgentUserUpn)          { $deployParams += "--parameters"; $deployParams += "agentUserUpn=$AgentUserUpn" }
   az deployment group create @deployParams | Out-Null
 } else {
   Write-Host "Skipping infrastructure deployment (-AppOnly)."

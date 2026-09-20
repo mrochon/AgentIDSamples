@@ -75,6 +75,7 @@ app.get("/api/config", (_req, res) => {
     agentObjectId:     process.env.AGENT_APP_ID      || "",
     miObjectId:        process.env.MI_OBJECT_ID      || "",
     hostingAppSecret:  process.env.HOSTING_APP_SECRET || "",
+    agentUserUpn:      process.env.AGENT_USER_UPN    || "",
     tenantId:          process.env.TENANT_ID         || ""
   });
 });

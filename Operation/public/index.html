@@ -331,8 +331,8 @@
             <input id="step5Scope" type="text" value="Mail.Read" />
           </div>
           <div>
-            <label>Username <small style="font-weight:normal;opacity:.7">(default: agent4aUser@beitmerari2.com)</small></label>
-            <input id="step5Username" type="text" value="agent4aUser@beitmerari2.com" />
+            <label>Username <small style="font-weight:normal;opacity:.7">(AGENT_USER_UPN — UPN of the agent user)</small></label>
+            <input id="step5Username" type="text" placeholder="agentuser@yourdomain.com" />
           </div>
         </div>
         <label>Request body</label>
@@ -470,6 +470,7 @@
           $('miObjectId').value     = d.miObjectId;
           inTenantId.value          = d.tenantId;
           if (d.hostingAppSecret) inHostingAppSecret.value = d.hostingAppSecret;
+          if (d.agentUserUpn) $('step5Username').value = d.agentUserUpn;
           buildStep1Url();
           buildStep2Preview();
           buildStep3Preview();
@@ -500,7 +501,7 @@
         const tid = inTenantId.value.trim();
         const aid = inAgentObjectId.value.trim();
         const scope = $('step5Scope').value.trim() || 'Mail.Read';
-        const username = $('step5Username').value.trim() || 'agent4aUser@beitmerari2.com';
+        const username = $('step5Username').value.trim() || '<enter username>';
         if (!tid || !aid) { $('step5Url').textContent = 'Enter Tenant ID and Agent Object ID above.'; $('step5Body').textContent = ''; return; }
         $('step5Url').textContent = 'POST https://login.microsoftonline.com/' + tid + '/oauth2/v2.0/token';
         const bodyLines = [
@@ -601,7 +602,7 @@
               assertion:     step2BlueprintToken,
               agentToken:    step5aToken,
               scope:         $('step5Scope').value.trim() || 'Mail.Read',
-              username:      $('step5Username').value.trim() || 'agent4aUser@beitmerari2.com'
+              username:      $('step5Username').value.trim()
             })
           });
           const d = await r.json();
