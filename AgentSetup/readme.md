@@ -20,7 +20,11 @@ This folder contains the [createObjects.http](createObjects.http) file with a se
 - Application.ReadWrite.All
 - AppRoleAssignment.ReadWrite.All
 
-3. Copy AgentSetup/.env.sample to .env and update it with the app registration details.
+   Also register a second, public-client application ("AI Test Public App") for the device-code flow used by *getTokenForUser*, and note its app id (PUBLIC_CLIENT_ID).
+
+   [AgentSetup/setup.ps1](setup.ps1) automates both registrations, permission/consent setup, secret creation, and writing .env - see the script header for details and prerequisites. Run it with `./setup.ps1 -TenantId <your tenant id or domain>` from this folder, and sign in with a work/school account from that tenant (not a personal Microsoft account).
+
+3. Copy AgentSetup/.env.sample to .env and update it with the app registration details (already done for you if you used setup.ps1).
 
 4. Open the createBlueprint.http file and execute the following *Send* actions:
 
