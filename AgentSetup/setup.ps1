@@ -56,6 +56,7 @@ $RequiredGraphAppRoles = @(
     'AgentIdentityBlueprint.UpdateBranding.All',
     'AgentIdentityBlueprintPrincipal.Create',
     'AgentIdentityBlueprintPrincipal.DeleteRestore.All',
+    'AgentIdUser.ReadWrite.IdentityParentedBy',
     'Application.Read.All',
     'Application.ReadWrite.All',
     'AppRoleAssignment.ReadWrite.All'

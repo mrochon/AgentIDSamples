@@ -1,6 +1,7 @@
 
 # Based on https://learn.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-create-agent-identity-blueprint?tabs=cli2%2Cgraph-explorer&pivots=graph-explorer
 # App must have AgentIdentityBlueprint.Create app permission. The app must be consented by a tenant admin. The app must be owned by the user creating the blueprint or the user must be a sponsor of the blueprint.
+# https://learn.microsoft.com/en-us/powershell/module/microsoft.entra.applications/?view=entra-powershell has the PowerShell commands
 
 # @name login
 POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
@@ -10,6 +11,12 @@ client_id={{$dotenv CLIENT_ID}}&client_secret={{$dotenv CLIENT_SECRET}}&scope=ht
 
 ###
 
+# https://learn.microsoft.com/en-us/graph/permissions-reference
+# e1fe6dd8-ba31-4d61-89e7-88639da4683d - User.Read (delegated)
+# 570282fd-fa5c-430d-a7fd-fc8dc98a9dca - Mail.Read (delegated)
+# df021288-bdef-4463-88db-98f22de89214 - User.Read.All (application)
+# To create and consent to these permissions use setAgentPermissisons.ps1 script, 
+# which requires AgentIdentityBlueprint.UpdateAuthProperties.All permission. Use Blueprint App Id when requested.
 # @name createBlueprint
 POST https://graph.microsoft.com/v1.0/applications/microsoft.graph.agentIdentityBlueprint
 Content-Type: application/json
@@ -377,6 +384,10 @@ Content-Type: application/x-www-form-urlencoded
 client_id={{$dotenv PUBLIC_CLIENT_ID}}&grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code={{getTokenForUser.response.body.device_code}}
 
 ### -----------------------------------------------------------------------------------
+# If the client is creating agents’ user accounts by using the agent identity blueprint, 
+# that blueprint must be granted the application permission AgentIdUser.ReadWrite.IdentityParentedBy
+# in the tenant. If a different client is used, that client needs AgentIdUser.ReadWrite.All delegated 
+# or application permission instead.
 # @name createAgentUser
 POST https://graph.microsoft.com/v1.0/users/microsoft.graph.agentUser
 Content-Type: application/json
@@ -384,9 +395,9 @@ Authorization: Bearer {{login.response.body.access_token}}
 
 {
   "accountEnabled": true,
-  "displayName": "Agent 5 Sales Agent",
+  "displayName": "Agent user for Agent001",
   "mailNickname": "SalesAgent",
-  "userPrincipalName": "salesagent@beitmerari2.com",
+  "userPrincipalName": "agentUser001@cascade-property.com",
   "identityParentId": "{{listAgentsForBlueprint.response.body.value[0].id}}"
 }
 
