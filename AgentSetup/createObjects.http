@@ -15,8 +15,10 @@ client_id={{$dotenv CLIENT_ID}}&client_secret={{$dotenv CLIENT_SECRET}}&scope=ht
 # e1fe6dd8-ba31-4d61-89e7-88639da4683d - User.Read (delegated)
 # 570282fd-fa5c-430d-a7fd-fc8dc98a9dca - Mail.Read (delegated)
 # df021288-bdef-4463-88db-98f22de89214 - User.Read.All (application)
+# 810c84a8-4a9e-49e6-bf7d-12d183f40d01 - Mail.Read (application)
 # To create and consent to these permissions use setAgentPermissisons.ps1 script, 
 # which requires AgentIdentityBlueprint.UpdateAuthProperties.All permission. Use Blueprint App Id when requested.
+# Could also try: https://login.microsoftonline.com/{organization}/adminconsent?client_id={client-id}
 # @name createBlueprint
 POST https://graph.microsoft.com/v1.0/applications/microsoft.graph.agentIdentityBlueprint
 Content-Type: application/json
@@ -74,7 +76,11 @@ Authorization: Bearer {{login.response.body.access_token}}
                 {
 					"id": "df021288-bdef-4463-88db-98f22de89214",
 					"type": "Role"
-				}
+				},
+                {
+          "id": "810c84a8-4a9e-49e6-bf7d-12d183f40d01",
+          "type": "Role"
+        }
 			]
 		}
 	],
@@ -87,6 +93,36 @@ Authorization: Bearer {{login.response.body.access_token}}
 }
 
 ###
+# @name patchBlueprint
+PATCH https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[0].id}}/microsoft.graph.agentIdentityBlueprint
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
+{
+	"requiredResourceAccess": [
+		{
+			"resourceAppId": "00000003-0000-0000-c000-000000000000",
+			"resourceAccess": [
+				{
+					"id": "e1fe6dd8-ba31-4d61-89e7-88639da4683d",
+					"type": "Scope"
+				},                
+				{
+					"id": "570282fd-fa5c-430d-a7fd-fc8dc98a9dca",
+					"type": "Scope"
+				},
+                {
+					"id": "df021288-bdef-4463-88db-98f22de89214",
+					"type": "Role"
+				},
+                {
+          "id": "810c84a8-4a9e-49e6-bf7d-12d183f40d01",
+          "type": "Role"
+        }
+			]
+		}
+	]
+}
 
 # @name listBlueprints
 GET https://graph.microsoft.com/v1.0/applications/microsoft.graph.agentIdentityBlueprint
@@ -115,8 +151,11 @@ Authorization: Bearer {{login.response.body.access_token}}
 {
   "resourceAppId": "00000003-0000-0000-c000-000000000000",
   "inheritableScopes": {
-    "@odata.type": "#microsoft.graph.allAllowedScopes",
-    "kind": "allAllowed"
+    "@odata.type": "microsoft.graph.enumeratedScopes",
+    "scopes": [
+      "User.Read",
+      "Mail.Read"
+    ]
   },
   "inheritableRoles": {
     "@odata.type": "#microsoft.graph.allAllowedRoles",
@@ -124,23 +163,20 @@ Authorization: Bearer {{login.response.body.access_token}}
   }
 }
 
-###
-# NOTE: these scopes must also be consented on the blueprint principal. Blueprints are NOT listed under Enterprise apps; use Entra admin center -> Entra ID -> Agents -> Agent blueprints (search by name/object ID, or add the 'Blueprint App ID' filter) -> Granted permissions (view only per docs; see getPermissionGrantsForBlueprintPrincipal to check via API)
-# @name addInheritablePermissions
-POST https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[0].id}}/microsoft.graph.agentIdentityBlueprint/inheritablePermissions
+### Get permissions
+# @name getInheritablePermissions
+GET https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[0].id}}/microsoft.graph.agentIdentityBlueprint/inheritablePermissions
+OData-Version: 4.0
 Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
 
-{
-  "resourceAppId": "00000003-0000-0000-c000-000000000000",
-  "inheritableScopes": {
-    "@odata.type": "microsoft.graph.enumeratedScopes",
-    "scopes": [
-      "User.Read",
-      "Mail.Read"
-    ]
-  }
-}
+### Delete permissions
+# @name deleteInheritablePermissions
+DELETE https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[0].id}}/microsoft.graph.agentIdentityBlueprint/inheritablePermissions/00000003-0000-0000-c000-000000000000
+OData-Version: 4.0
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.access_token}}
+
 
 ### This app must have AgentIdentityPrincipal.Create app permission.
 # @name createBlueprintServicePrincipal
@@ -254,7 +290,7 @@ Content-Type: application/json
 Authorization: Bearer {{blueprintLogin.response.body.access_token}}
 
 {
-  "displayName": "Agent 001",
+  "displayName": "Agent 002",
   "agentIdentityBlueprintId": "{{listBlueprints.response.body.value[0].appId}}",
   "sponsors@odata.bind": [
     "https://graph.microsoft.com/v1.0/users/{{$dotenv USER_OBJECT_ID}}"
