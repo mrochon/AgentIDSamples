@@ -342,42 +342,42 @@ GET https://graph.microsoft.com/v1.0/servicePrincipals(appId='00000003-0000-0000
 Authorization: Bearer {{login.response.body.access_token}}
 
 ###
-# @name setPermissionGrantsForAgent
-POST https://graph.microsoft.com/v1.0/oauth2PermissionGrants
-Content-Type: application/json
-Authorization: Bearer {{login.response.body.access_token}}
+#@name setPermissionGrantsForAgent
+# POST https://graph.microsoft.com/v1.0/oauth2PermissionGrants
+# Content-Type: application/json
+# Authorization: Bearer {{login.response.body.access_token}}
 
-{
-  "clientId": "{{listAgentsForBlueprint.response.body.value[0].id}}",
-  "consentType": "AllPrincipals",
-  "resourceId": "{{getGraphAPIServicePrincipalId.response.body.id}}",
-  "scope": "Mail.Read User.Read"
-}
+# {
+#   "clientId": "{{listAgentsForBlueprint.response.body.value[0].id}}",
+#   "consentType": "AllPrincipals",
+#   "resourceId": "{{getGraphAPIServicePrincipalId.response.body.id}}",
+#   "scope": "Mail.Read User.Read"
+# }
 
-###
-# @name grantConsentToApplicationPermissions
-POST https://graph.microsoft.com/v1.0/servicePrincipals/{{listAgentsForBlueprint.response.body.value[1].id}}/appRoleAssignments
-Content-Type: application/json
-Authorization: Bearer {{login.response.body.access_token}}
+# ###
+# # @name grantConsentToApplicationPermissions
+# POST https://graph.microsoft.com/v1.0/servicePrincipals/{{listAgentsForBlueprint.response.body.value[1].id}}/appRoleAssignments
+# Content-Type: application/json
+# Authorization: Bearer {{login.response.body.access_token}}
 
-{
-  "principalId": "{{listAgentsForBlueprint.response.body.value[0].id}}",
-  "resourceId": "{{getGraphAPIServicePrincipalId.response.body.id}}",   // Microsoft Graph SP
-  "appRoleId": "df021288-bdef-4463-88db-98f22de89214"   // e.g., User.Read.All
-}
+# {
+#   "principalId": "{{listAgentsForBlueprint.response.body.value[0].id}}",
+#   "resourceId": "{{getGraphAPIServicePrincipalId.response.body.id}}",   // Microsoft Graph SP
+#   "appRoleId": "df021288-bdef-4463-88db-98f22de89214"   // e.g., User.Read.All
+# }
 
 ###
 # Or do through portal
-# @name assignRole
-POST https://graph.microsoft.com/beta/servicePrincipals/{{createBlueprintServicePrincipal.response.body.id}}/appRoleAssignments
-Content-Type: application/json
-Authorization: Bearer {{login.response.body.access_token}}
+# # @name assignRole
+# POST https://graph.microsoft.com/beta/servicePrincipals/{{createBlueprintServicePrincipal.response.body.id}}/appRoleAssignments
+# Content-Type: application/json
+# Authorization: Bearer {{login.response.body.access_token}}
 
-{
-  "principalId": "{{$dotenv USER_OBJECT_ID}}",
-  "resourceId": "{{createBlueprintServicePrincipal.response.body.id}}",
-  "appRoleId": "{{listBlueprints.response.body.value[0].appRoles[0].id}}"
-}
+# {
+#   "principalId": "{{$dotenv USER_OBJECT_ID}}",
+#   "resourceId": "{{createBlueprintServicePrincipal.response.body.id}}",
+#   "appRoleId": "{{listBlueprints.response.body.value[0].appRoles[0].id}}"
+# }
 
 # Keeping this for documentation. Do not use.
 ### Get autonomous agent token using the blueprint app credentials. This token can be used to call Microsoft Graph API on behalf of the agent. The token will have the permissions defined in the blueprint.
