@@ -36,6 +36,11 @@ To run individual commands in the [CreateObjects.http](AgentSetup/CreateObjects.
 
 Install the [REST Client VS Code extension](https://marketplace.visualstudio.com/items?itemName=humao.rest-client) to execute the http commands in VSCode.
 
+### Audit
+
+Once yo have used the above to create the various Agent ID artifacts, you can use [Agent ID Audit](https://www.powershellgallery.com/packages?q=agentidaudit) PowerShell module
+to get a view on the security posture of your agents.
+
 ### Get tokens
 
 #### Run locally
