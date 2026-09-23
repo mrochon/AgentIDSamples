@@ -51,15 +51,17 @@ $RequiredGraphAppRoles = @(
     'AgentIdentityBlueprint.AddRemoveCreds.All',
     'AgentIdentityBlueprint.Create',
     'AgentIdentityBlueprint.DeleteRestore.All',
-    'AgentIdentityBlueprint.Read.All',
+    'AgentIdentityBlueprint.ReadWrite.All',
     'AgentIdentityBlueprint.UpdateAuthProperties.All',
-    'AgentIdentityBlueprint.UpdateBranding.All',
     'AgentIdentityBlueprintPrincipal.Create',
     'AgentIdentityBlueprintPrincipal.DeleteRestore.All',
-    'AgentIdUser.ReadWrite.IdentityParentedBy',
+    'AgentIdentityBlueprintPrincipal.Read.All',
+    'AgentIdentity.Read.All',
+    'AgentIdUser.ReadWrite.All',
+    'AgentInstance.Read.All',
     'Application.Read.All',
     'Application.ReadWrite.All',
-    'AppRoleAssignment.ReadWrite.All'
+    'Directory.Read.All'
 )
 
 function Assert-Module {

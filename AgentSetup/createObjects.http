@@ -207,6 +207,10 @@ Authorization: Bearer {{login.response.body.access_token}}
 # Create credentials for this app so it can login to create agents from this client (Needs Application.ReadWrite.OwnedBy)
 # Recommended: Run agent creation from an Azure-hosted process so it can use MI as federated credetial: https://github.com/MicrosoftDocs/entra-docs/blob/main/docs/agent-id/identity-platform/create-blueprint.md#microsoft-graph-api-2
 # use {{createBlueprintCredential.response.body.secretText}} to reference the created secret
+# You will also need this value in the if you re-start the VSCode session and in the web
+# app when using it without Managed Identity support (e.g. when running locally). 
+# (I usually save it in the .env file as BLUEPRINT_PWD_CREDENTIAL so I can use in multiple runs
+# and in the web app if I run it locally or without Managed Identity.)
 # @name createBlueprintPasswordCredential
 POST https://graph.microsoft.com/v1.0/applications/{{listBlueprints.response.body.value[0].id}}/addPassword
 OData-Version: 4.0
@@ -455,17 +459,3 @@ DELETE https://graph.microsoft.com/beta/applications/{{listBlueprints.response.b
 Authorization: Bearer {{login.response.body.access_token}}
 
 
-### -------------------------------------------------------------------------------
-### Reporting
-
-###
-# @name listAgentInstances
-GET https://graph.microsoft.com/beta//agentRegistry/agentInstances
-Content-Type: application/json
-Authorization: Bearer {{login.response.body.access_token}}
-
-###
-# @name listManifests
-GET https://graph.microsoft.com/beta/GET /agentRegistry/agentInstances/{agentInstanceId}/agentCardManifest
-Content-Type: application/json
-Authorization: Bearer {{login.response.body.access_token}}
