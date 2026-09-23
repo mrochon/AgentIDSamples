@@ -70,9 +70,9 @@ function decodeJwt(token) {
 app.get("/api/config", (_req, res) => {
   res.json({
     endpoint:          process.env.IDENTITY_ENDPOINT || "",
-    managedIdentityId: process.env.AZURE_CLIENT_ID   || "",
+    managedIdentityId: process.env.MI_CLIENT_ID   || "",
     blueprintAppId:    process.env.BLUEPRINT_APP_ID  || "",
-    agentObjectId:     process.env.AGENT_APP_ID      || "",
+    agentAppId:        process.env.AGENT_APP_ID      || "",
     miObjectId:        process.env.MI_OBJECT_ID      || "",
     hostingAppSecret:  process.env.HOSTING_APP_SECRET || "",
     agentUserUpn:      process.env.AGENT_USER_UPN    || "",
@@ -87,9 +87,9 @@ app.get("/api/step1", async (req, res) => {
     const identityHeader = process.env.IDENTITY_HEADER;
     if (!endpoint) return res.status(500).json({ error: "IDENTITY_ENDPOINT not set. Ensure a managed identity is attached." });
 
-    const managedIdentityId = req.query.managedIdentityId || process.env.AZURE_CLIENT_ID;
+    const managedIdentityId = req.query.managedIdentityId || process.env.MI_CLIENT_ID;
 
-    if (!managedIdentityId) return res.status(400).json({ error: "managedIdentityId (AZURE_CLIENT_ID) is required." });
+    if (!managedIdentityId) return res.status(400).json({ error: "managedIdentityId (MI_CLIENT_ID) is required." });
 
     const params = new URLSearchParams({
       resource:      "api://AzureADTokenExchange",
@@ -114,7 +114,7 @@ app.get("/api/step1", async (req, res) => {
 // Step 2 — POST assertion to Entra to get a blueprint app token
 app.post("/api/step2", async (req, res) => {
   try {
-    const { tenantId, blueprintAppId, agentObjectId, assertion, clientSecret } = req.body;
+    const { tenantId, blueprintAppId, agentAppId, assertion, clientSecret } = req.body;
     if (!tenantId || !blueprintAppId) {
       return res.status(400).json({ error: "Missing required fields: tenantId, blueprintAppId." });
     }
@@ -127,7 +127,7 @@ app.post("/api/step2", async (req, res) => {
       grant_type:            "client_credentials",
       client_id:             blueprintAppId,
       scope:                 "api://AzureADTokenExchange/.default",
-      fmi_path:              agentObjectId || blueprintAppId
+      fmi_path:              agentAppId || blueprintAppId
     });
     if (clientSecret) {
       form.set("client_secret", clientSecret);
@@ -152,14 +152,14 @@ app.post("/api/step2", async (req, res) => {
 // Step 3 — POST blueprint token to Entra to get an autonomous agent Graph token
 app.post("/api/step3", async (req, res) => {
   try {
-    const { tenantId, blueprintAppId, agentObjectId, assertion } = req.body;
+    const { tenantId, blueprintAppId, agentAppId, assertion } = req.body;
     if (!tenantId || !blueprintAppId || !assertion) {
       return res.status(400).json({ error: "Missing required fields: tenantId, blueprintAppId, assertion." });
     }
 
     const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
     const form = new URLSearchParams({
-      client_id:             agentObjectId || blueprintAppId,
+      client_id:             agentAppId || blueprintAppId,
       scope:                 "https://graph.microsoft.com/.default",
       client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
       client_assertion:      assertion,
@@ -225,15 +225,15 @@ app.post("/api/obo1", async (req, res) => {
 // Step 4 — OBO: acquire agent token on behalf of user
 app.post("/api/step4", async (req, res) => {
   try {
-    const { tenantId, agentObjectId, blueprintToken, userToken, scope } = req.body;
-    if (!tenantId || !agentObjectId || !blueprintToken || !userToken) {
-      return res.status(400).json({ error: "Missing required fields: tenantId, agentObjectId, blueprintToken, userToken." });
+    const { tenantId, agentAppId, blueprintToken, userToken, scope } = req.body;
+    if (!tenantId || !agentAppId || !blueprintToken || !userToken) {
+      return res.status(400).json({ error: "Missing required fields: tenantId, agentAppId, blueprintToken, userToken." });
     }
 
     const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
     const form = new URLSearchParams({
       grant_type:            "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      client_id:             agentObjectId,
+      client_id:             agentAppId,
       client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
       client_assertion:      blueprintToken,
       assertion:             userToken,
@@ -256,14 +256,14 @@ app.post("/api/step4", async (req, res) => {
 
 app.post("/api/step5a", async (req, res) => {
   try {
-    const { tenantId, agentObjectId, assertion } = req.body;
-    if (!tenantId || !agentObjectId || !assertion) {
-      return res.status(400).json({ error: "Missing required fields: tenantId, agentObjectId, assertion." });
+    const { tenantId, agentAppId, assertion } = req.body;
+    if (!tenantId || !agentAppId || !assertion) {
+      return res.status(400).json({ error: "Missing required fields: tenantId, agentAppId, assertion." });
     }
 
     const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
     const form = new URLSearchParams({
-      client_id:             agentObjectId,
+      client_id:             agentAppId,
       scope:                 "api://AzureADTokenExchange/.default",
       client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
       client_assertion:      assertion,
@@ -285,14 +285,14 @@ app.post("/api/step5a", async (req, res) => {
 
 app.post("/api/step5", async (req, res) => {
   try {
-    const { tenantId, agentObjectId, assertion, agentToken, scope, username } = req.body;
-    if (!tenantId || !agentObjectId || !assertion || !agentToken || !username) {
-      return res.status(400).json({ error: "Missing required fields: tenantId, agentObjectId, assertion, agentToken, username." });
+    const { tenantId, agentAppId, assertion, agentToken, scope, username } = req.body;
+    if (!tenantId || !agentAppId || !assertion || !agentToken || !username) {
+      return res.status(400).json({ error: "Missing required fields: tenantId, agentAppId, assertion, agentToken, username." });
     }
 
     const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
     const form = new URLSearchParams({
-      client_id:                          agentObjectId,
+      client_id:                          agentAppId,
       scope:                              scope || "Mail.Read",
       client_assertion_type:              "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
       client_assertion:                   assertion,

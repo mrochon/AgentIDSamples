@@ -149,7 +149,7 @@
           <div>
             <label>TENANT_ID</label>
             <input id="tenantId" type="text" placeholder="Entra tenant ID" />
-            <label>Managed Identity ID <small style="font-weight:normal;opacity:.7">(AZURE_CLIENT_ID)</small></label>
+            <label>Managed Identity ID <small style="font-weight:normal;opacity:.7">(MI_CLIENT_ID)</small></label>
             <input id="managedIdentityId" type="text" placeholder="Injected from managed identity client ID" readonly style="opacity:.8;cursor:default" />
             <label>MI_OBJECT_ID <small style="font-weight:normal;opacity:.7">(Managed Identity Object Id)</small></label>
             <input id="miObjectId" type="text" placeholder="Object ID of the managed identity" />
@@ -157,8 +157,8 @@
           <div>
             <label>BLUEPRINT_APP_ID</label>
             <input id="blueprintAppId" type="text" placeholder="Client ID of the blueprint app" />
-            <label>Agent Object Id</label>
-            <input id="agentObjectId" type="text" placeholder="Agent object ID" />
+            <label>AGENT_APP_ID <small style="font-weight:normal;opacity:.7">(App ID of the agent identity)</small></label>
+            <input id="agentAppId" type="text" placeholder="App ID of the agent identity" />
           </div>
         </div>
       </div>
@@ -358,7 +358,7 @@
       const inManagedIdentityId = $("managedIdentityId");
       const inBlueprintAppId    = $("blueprintAppId");
       const inTenantId          = $("tenantId");
-      const inAgentObjectId      = $("agentObjectId");
+      const inAgentAppId      = $("agentAppId");
       const inHostingAppSecret   = $("hostingAppSecret");
       const inSkipStep1          = $("skipStep1");
       const inStep2ClientSecret  = $("step2ClientSecret");
@@ -413,7 +413,7 @@
       function buildStep2Preview() {
         const tid = inTenantId.value.trim();
         const bid = inBlueprintAppId.value.trim();
-        const fmi = inAgentObjectId.value.trim();
+        const fmi = inAgentAppId.value.trim();
         const skipStep1 = inSkipStep1.checked;
         if (!tid || !bid) { $("step2Url").textContent = "Enter Tenant ID and BLUEPRINT_APP_ID above."; $("step2Body").textContent = ""; return; }
         $("step2Url").textContent = "POST https://login.microsoftonline.com/" + tid + "/oauth2/v2.0/token";
@@ -428,7 +428,7 @@
           bodyLines.push("client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer");
           bodyLines.push("client_assertion=" + (step1Assertion ? step1Assertion.substring(0, 40) + "..." : "<run Step 1 first>"));
         }
-        bodyLines.push("fmi_path=" + (fmi || "<agentObjectId>"));
+        bodyLines.push("fmi_path=" + (fmi || "<agentAppId>"));
         $("step2Body").textContent = bodyLines.join("\n");
       }
 
@@ -447,7 +447,7 @@
         buildStep2Preview();
       }
 
-      [inManagedIdentityId, inBlueprintAppId, inTenantId, inAgentObjectId].forEach(el => {
+      [inManagedIdentityId, inBlueprintAppId, inTenantId, inAgentAppId].forEach(el => {
         el.addEventListener("input", () => { buildStep1Url(); buildStep2Preview(); buildStep3Preview(); buildStep4Obo1Preview(); buildStep4Preview(); buildStep5aPreview(); buildStep5bPreview(); });
       });
 
@@ -466,7 +466,7 @@
           resolvedEndpoint          = d.endpoint;
           inManagedIdentityId.value = d.managedIdentityId;
           inBlueprintAppId.value    = d.blueprintAppId;
-          inAgentObjectId.value     = d.agentObjectId;
+          inAgentAppId.value     = d.agentAppId;
           $('miObjectId').value     = d.miObjectId;
           inTenantId.value          = d.tenantId;
           if (d.hostingAppSecret) inHostingAppSecret.value = d.hostingAppSecret;
@@ -484,8 +484,8 @@
 
       function buildStep5aPreview() {
         const tid = inTenantId.value.trim();
-        const aid = inAgentObjectId.value.trim();
-        if (!tid || !aid) { $('step5aUrl').textContent = 'Enter Tenant ID and Agent Object ID above.'; $('step5aBody').textContent = ''; return; }
+        const aid = inAgentAppId.value.trim();
+        if (!tid || !aid) { $('step5aUrl').textContent = 'Enter Tenant ID and Agent App ID above.'; $('step5aBody').textContent = ''; return; }
         $('step5aUrl').textContent = 'POST https://login.microsoftonline.com/' + tid + '/oauth2/v2.0/token';
         const bodyLines = [
           'client_id=' + aid,
@@ -499,10 +499,10 @@
 
       function buildStep5bPreview() {
         const tid = inTenantId.value.trim();
-        const aid = inAgentObjectId.value.trim();
+        const aid = inAgentAppId.value.trim();
         const scope = $('step5Scope').value.trim() || 'Mail.Read';
         const username = $('step5Username').value.trim() || '<enter username>';
-        if (!tid || !aid) { $('step5Url').textContent = 'Enter Tenant ID and Agent Object ID above.'; $('step5Body').textContent = ''; return; }
+        if (!tid || !aid) { $('step5Url').textContent = 'Enter Tenant ID and Agent App ID above.'; $('step5Body').textContent = ''; return; }
         $('step5Url').textContent = 'POST https://login.microsoftonline.com/' + tid + '/oauth2/v2.0/token';
         const bodyLines = [
           'client_id=' + aid,
@@ -562,7 +562,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               tenantId:      inTenantId.value.trim(),
-              agentObjectId: inAgentObjectId.value.trim(),
+              agentAppId: inAgentAppId.value.trim(),
               assertion:     step2BlueprintToken
             })
           });
@@ -598,7 +598,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               tenantId:      inTenantId.value.trim(),
-              agentObjectId: inAgentObjectId.value.trim(),
+              agentAppId: inAgentAppId.value.trim(),
               assertion:     step2BlueprintToken,
               agentToken:    step5aToken,
               scope:         $('step5Scope').value.trim() || 'Mail.Read',
@@ -643,7 +643,7 @@
             body: JSON.stringify({
               tenantId:       inTenantId.value.trim(),
               blueprintAppId: inBlueprintAppId.value.trim(),
-              agentObjectId:  inAgentObjectId.value.trim(),
+              agentAppId:  inAgentAppId.value.trim(),
               assertion:      skipStep1 ? "" : step1Assertion,
               clientSecret:   skipStep1 ? inStep2ClientSecret.value.trim() : ""
             })
@@ -667,11 +667,11 @@
       function buildStep3Preview() {
         const tid = inTenantId.value.trim();
         const bid = inBlueprintAppId.value.trim();
-        const aid = inAgentObjectId.value.trim();
+        const aid = inAgentAppId.value.trim();
         if (!tid || !bid) { $("step3Url").textContent = "Enter Tenant ID and BLUEPRINT_APP_ID above."; $("step3Body").textContent = ""; return; }
         $("step3Url").textContent = "POST https://login.microsoftonline.com/" + tid + "/oauth2/v2.0/token";
         const bodyLines = [
-          "client_id=" + (aid || "<agentObjectId>"),
+          "client_id=" + (aid || "<agentAppId>"),
           "scope=https://graph.microsoft.com/.default",
           "client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
           "client_assertion=" + (step2BlueprintToken ? step2BlueprintToken.substring(0, 40) + "..." : "<run Step 2 first>"),
@@ -699,13 +699,13 @@
 
       function buildStep4Preview() {
         const tid = inTenantId.value.trim();
-        const aid = inAgentObjectId.value.trim();
+        const aid = inAgentAppId.value.trim();
         const userTok = step4UserToken;
-        if (!tid || !aid) { $("step4Url").textContent = "Enter Tenant ID and Agent Object ID above."; $("step4Body").textContent = ""; return; }
+        if (!tid || !aid) { $("step4Url").textContent = "Enter Tenant ID and Agent App ID above."; $("step4Body").textContent = ""; return; }
         $("step4Url").textContent = "POST https://login.microsoftonline.com/" + tid + "/oauth2/v2.0/token";
         const bodyLines4 = [
           "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
-          "&client_id=" + (aid || "<agentObjectId>"),
+          "&client_id=" + (aid || "<agentAppId>"),
           "&client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer",
           "&client_assertion=" + (step2BlueprintToken ? step2BlueprintToken.substring(0, 40) + "..." : "<run Step 2 first>"),
           "&assertion=" + (step4UserToken ? step4UserToken.substring(0, 40) + "... (OBO1 access_as_user token)" : "<run OBO Call 1 above>"),
@@ -733,7 +733,7 @@
             body: JSON.stringify({
               tenantId:       inTenantId.value.trim(),
               blueprintAppId: inBlueprintAppId.value.trim(),
-              agentObjectId:  inAgentObjectId.value.trim(),
+              agentAppId:  inAgentAppId.value.trim(),
               assertion:      step2BlueprintToken
             })
           });
@@ -818,7 +818,7 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               tenantId:       inTenantId.value.trim(),
-              agentObjectId:  inAgentObjectId.value.trim(),
+              agentAppId:  inAgentAppId.value.trim(),
               blueprintToken: step2BlueprintToken,
               userToken:      step4UserToken,
               scope:          $('step4Scope').value.trim() || 'https://graph.microsoft.com/mail.read'

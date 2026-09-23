@@ -7,7 +7,8 @@ These samples show:
 
 1. Graph http calls needed to [create Entra Agent ID artifacts](AgentSetup): blueprints, agent identities and agent users. They expose what toolkits and tools do behind the scene to manage Agent ID data.
 
-2. A simple [web application](Operation) obtaining OAuth2 tokens for agents. Again, the application exposes the raw https calls needed for that purpose.
+2. A simple [web application](Operation) obtaining OAuth2 tokens for agents. Again, the application exposes the raw https calls needed for that purpose. Deployed version of this app [can be accessed here](https://agentidtokens.azurewebsites.net/). However, it requires authentication with my tenant to actualy request and display tokens. The UI shows
+what inputs it would use and the syntax of the token requests.
 
 Hopefully, the use of low-level http calls will help the user to better understand how the Agent ID operates even if in production systems these are embedded in Microsoft or 3rd party tools or toolkits. 
 
@@ -64,8 +65,9 @@ The app loads its settings from a `.env` file in this folder (git-ignored) using
 | `TENANT_ID` | Entra tenant ID |
 | `BLUEPRINT_APP_ID` | App (client) ID of the agent identity blueprint |
 | `AGENT_APP_ID` | App ID of the agent identity |
-| `AZURE_CLIENT_ID` | Client ID of the user-assigned managed identity (see below) |
+| `MI_CLIENT_ID` | Client ID of the user-assigned managed identity (see below) |
 | `MI_OBJECT_ID` | Object (principal) ID of the managed identity |
+| `HOSTING_APP_ID` | Client (app) ID of the hosting app registration. Used only by `deploy.ps1` to enable authentication on the Web App (see [Authentication](#authentication-easyauth)) |
 | `HOSTING_APP_SECRET` | Client secret of the hosting app registration (see below) |
 | `AGENT_USER_UPN` | User principal name of the agent user, e.g. `agentuser@yourdomain.com`. Pre-fills the **Username** field in Step 5b |
 
@@ -77,13 +79,13 @@ The UPN of the agent user that Step 5b acquires a token for (the `username` sent
 
 For a deployed app, `deploy.ps1` reads `AGENT_USER_UPN` from `.env` (or takes `-AgentUserUpn <upn>`) and passes it to `main.bicep` as the `agentUserUpn` parameter, which sets the app setting. It is applied only on a full deployment, not with `-AppOnly`.
 
-##### AZURE_CLIENT_ID
+##### MI_CLIENT_ID
 
 This is the client ID of the user-assigned managed identity created by `main.bicep`. The template sets it on the Web App automatically, so you only need it in `.env` for local runs. To look it up:
 
 - Azure CLI: `az identity show -g <rg> -n <appName>-uami --query clientId -o tsv`
 - Portal: open the managed identity resource, then **Overview** > **Client ID**. Do not use **Object (principal) ID**; that is `MI_OBJECT_ID`.
-- Deployed app: `az webapp config appsettings list -g <rg> -n <appName> --query "[?name=='AZURE_CLIENT_ID'].value" -o tsv`
+- Deployed app: `az webapp config appsettings list -g <rg> -n <appName> --query "[?name=='MI_CLIENT_ID'].value" -o tsv`
 
 ##### HOSTING_APP_SECRET
 
@@ -104,32 +106,74 @@ Step 1 also needs a managed identity, so it fails locally with "IDENTITY_ENDPOIN
 
 #### Deploy with Bicep
 
-The template creates an App Service plan, a Web App, and a user-assigned managed identity.
+The template creates an App Service plan and a Web App. It also creates a user-assigned managed identity, unless you tell it to use an existing one (see below).
 
-Example deployment:
+**Prerequisites:** the resource group must already exist (`deploy.ps1` does not create it), and you must be signed in with `az login`.
 
-az deployment group create \
-  --resource-group <rg> \
-  --template-file main.bicep
+**Configuration.** `main.bicep` has no hard-coded tenant or app ids. `deploy.ps1` reads `TENANT_ID`, `BLUEPRINT_APP_ID`, `AGENT_APP_ID`, `HOSTING_APP_SECRET` and `AGENT_USER_UPN` from `.env` and passes them to the template, so `.env` is the single source of configuration for both local runs and deployments. You can override any of them with `-TenantId`, `-BlueprintAppId`, `-AgentAppId`, `-HostingAppSecret` or `-AgentUserUpn`. A full deployment stops with an error if the tenant, blueprint or agent id is missing. The values are only applied on a full deployment, not with `-AppOnly`.
 
-After deployment, assign Microsoft Graph API permissions to the managed identity in Entra ID if needed, then browse to the Web App URL output.
+**Web app name.** `-AppName` is required. It is passed to the template as the name of the Web App, so pick a globally unique name (it becomes `<AppName>.azurewebsites.net`) and use the same name for later `-AppOnly` deployments.
+
+**Managed identity.** By default the template creates an identity named `<AppName>-uami`. The federated credential on your blueprint trusts one specific managed identity (`MANAGED_IDENTITY_OBJ_ID` in `createObjects.http`), so if you already have that identity, pass `-IdentityName <name>`. The identity must be in the same resource group. The template then attaches it to the Web App without creating or changing it, and `MI_CLIENT_ID` and `MI_OBJECT_ID` are taken from it. Either way they are set on the Web App automatically, so they are not passed in. The deployment also outputs `managedIdentityClientId` and `managedIdentityPrincipalId`, which you can copy into `.env` for local runs.
 
 ```
 az login --tenant <your tenant>
 
-# Full deployment (infrastructure + app code) — run when main.bicep changes
+# Full deployment (infrastructure + app code) - run when main.bicep changes
 cd Operation
-.\deploy.ps1  -ResourceGroup <rg> -AppName <app name from bicep>
+.\deploy.ps1 -ResourceGroup <rg> -AppName <app name>
 
-# App code only — run when only server.js / public/* / package.json change
-.\deploy.ps1  -ResourceGroup <rg> -AppName <app name from bicep> -AppOnly
+# Same, using an existing managed identity in the resource group
+.\deploy.ps1 -ResourceGroup <rg> -AppName <app name> -IdentityName <identity name>
+
+# App code only - run when only server.js / public/* / package.json change
+.\deploy.ps1 -ResourceGroup <rg> -AppName <app name> -AppOnly
 ```
 
-Example:
+Example, using an existing resource group `ai` and managed identity `BlueprintIdentity`:
 ```
 cd Operation
-.\deploy.ps1  -ResourceGroup agentid -AppName operation-web-igzu6xvzldpys
-.\deploy.ps1  -ResourceGroup agentid -AppName operation-web-igzu6xvzldpys -AppOnly
+.\deploy.ps1 -ResourceGroup ai -AppName operation-web-mysample -IdentityName BlueprintIdentity
+.\deploy.ps1 -ResourceGroup ai -AppName operation-web-mysample -AppOnly
 ```
 
-.\deploy.ps1 -ResourceGroup <rg> -AppName <appName> -AppOnly
+If you deploy with `az deployment group create` directly instead of `deploy.ps1`, pass `--parameters appName=... tenantId=... blueprintAppId=... agentAppId=...` (the template has no defaults for the last three), and optionally `existingIdentityName=...`.
+
+After deployment, assign Microsoft Graph API permissions to the managed identity in Entra ID if needed, then browse to the Web App URL output.
+
+##### Authentication (EasyAuth)
+
+When `HOSTING_APP_ID` and `HOSTING_APP_SECRET` are both set (in `.env` or as `-HostingAppId` / `-HostingAppSecret`), a full deployment turns on App Service authentication for the Web App:
+
+- Microsoft Entra ID is the identity provider, using the issuer for `TENANT_ID` and the app registration `HOSTING_APP_ID`. The secret is read from the `HOSTING_APP_SECRET` app setting, so it is not stored in the auth configuration.
+- Unauthenticated requests are redirected to the sign-in page.
+- The token store is enabled, so App Service passes the user's `id_token` to the app in the `X-MS-TOKEN-AAD-ID-TOKEN` header, which the OBO step uses.
+
+If `HOSTING_APP_ID` is not set, `deploy.ps1` warns and deploys **without** authentication, leaving the site open to anyone. If `HOSTING_APP_ID` is set without a secret, it stops with an error. Like the other settings, authentication is only configured on a full deployment, not with `-AppOnly`.
+
+`HOSTING_APP_ID` is the app registration users sign in to, the one `HOSTING_APP_SECRET` belongs to. It is **not** `MI_CLIENT_ID` (the managed identity) or the blueprint or agent app id. The deployment does not change the app registration, so configure it once:
+
+1. Under **Authentication**, add a **Web** redirect URI: `https://<AppName>.azurewebsites.net/.auth/login/aad/callback`. `deploy.ps1` prints the exact URI after deployment.
+2. On the same page, under **Implicit grant and hybrid flows**, tick **ID tokens**. Without this, sign-in fails or no `id_token` is issued.
+3. Allow the hosting app to call the blueprint on the user's behalf (see below).
+
+From the Azure CLI, steps 1 and 2 are (`--web-redirect-uris` replaces the existing list, so include any you already have):
+
+```
+az ad app update --id <HOSTING_APP_ID> --enable-id-token-issuance true --web-redirect-uris https://<AppName>.azurewebsites.net/.auth/login/aad/callback
+```
+
+###### Letting the hosting app call the blueprint (OBO)
+
+The hosting app registration and the agent identity blueprint are two different applications. In the OBO step the hosting app sends the signed-in user's token to Entra, authenticating with its own `HOSTING_APP_ID` and `HOSTING_APP_SECRET`, and asks for a token for the blueprint's `access_as_user` scope (`api://<BLUEPRINT_APP_ID>/access_as_user`). Entra only issues that token if the hosting app has been allowed to call the blueprint's API. Otherwise the step fails with a consent error (`AADSTS65001`). Do one of the following, once:
+
+- **Option A - on the hosting app.** Add the blueprint's `access_as_user` as an API permission on the hosting app registration and grant admin consent. In the portal, use **API permissions** > **Add a permission** > **APIs my organization uses**. If the blueprint is not listed there, use the CLI, which takes the ids directly. Get the scope id (`<SCOPE_ID>`) from `api.oauth2PermissionScopes[0].id` in the `listBlueprints` response in `AgentSetup/createObjects.http`:
+
+  ```
+  az ad app permission add --id <HOSTING_APP_ID> --api <BLUEPRINT_APP_ID> --api-permissions <SCOPE_ID>=Scope
+  az ad app permission admin-consent --id <HOSTING_APP_ID>
+  ```
+
+- **Option B - on the blueprint.** Pre-authorize the hosting app as a client of the blueprint's `access_as_user` scope (in the blueprint's **Expose an API** settings, or through `api.preAuthorizedApplications` on the blueprint). Users then don't need to consent, and the hosting app registration is not changed. Setting `preAuthorizedApplications` replaces the whole list, so include any clients already in it.
+
+Option B keeps the trust with the blueprint, which you manage through `createObjects.http`. Option A keeps it with the hosting app. The result is the same, so choose whichever fits how you manage the two registrations.
