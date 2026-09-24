@@ -7,7 +7,6 @@
 @blueprintId    = {{listBlueprints.response.body.value[1].id}}
 @blueprintAppId = {{listBlueprints.response.body.value[1].appId}}
 @agentId        = {{listAgentsForBlueprint.response.body.value[0].id}}
-@agentAppId     = {{listAgentsForBlueprint.response.body.value[0].appId}}
 
 ###
 # @name login
