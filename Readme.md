@@ -18,7 +18,12 @@ This code was developed using Microsoft's [Entra Agent ID documentation](https:/
 
 ### Create
 
-To run individual commands in the [CreateObjects.http](AgentSetup/CreateObjects.http) you will need to register and consent to an application with the following **application** permissions. Cope .env.sample and update it with the app registration data.
+To run individual commands in the [CreateObjects.http](AgentSetup/CreateObjects.http) you will need to register and consent to an application with the following **application** permissions. Run this command to create this app and permissions.
+The application wil also create or update the .env file.
+
+```
+.\AgentSetup\setup.ps1 -TenantId <your entra tenant id> -UseDeviceCode
+```
 
 - AgentIdentityBlueprint.AddRemoveCreds.All
 - AgentIdentityBlueprint.Create

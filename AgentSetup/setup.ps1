@@ -35,7 +35,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$AgentAppDisplayName = 'AI Agent ID Tester',
+    [string]$AgentAppDisplayName = 'AgentID Samples Harness',
     [string]$PublicAppDisplayName = 'AI Test Public App',
     [string]$EnvSamplePath = (Join-Path $PSScriptRoot '.env.sample'),
     [string]$EnvPath = (Join-Path $PSScriptRoot '.env'),

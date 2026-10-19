@@ -4,9 +4,10 @@
 # https://learn.microsoft.com/en-us/powershell/module/microsoft.entra.applications/?view=entra-powershell has the PowerShell commands
 
 ###
-@blueprintId    = {{listBlueprints.response.body.value[1].id}}
-@blueprintAppId = {{listBlueprints.response.body.value[1].appId}}
+@blueprintId    = {{listBlueprints.response.body.value[0].id}}
+@blueprintAppId = {{listBlueprints.response.body.value[0].appId}}
 @agentId        = {{listAgentsForBlueprint.response.body.value[0].id}}
+@blueprintName  = "Sample Blueprint V1"
 
 ###
 # @name login
@@ -31,7 +32,7 @@ Content-Type: application/json
 Authorization: Bearer {{login.response.body.access_token}}
 
 {
-    "displayName": "Blueprint V6",
+    "displayName": "{{blueprintName}}",
     "description": "This is a blueprint for creating autonomous agents with Microsoft Graph API.",
     "appRoles": [
         {
@@ -116,7 +117,7 @@ Authorization: Bearer {{login.response.body.access_token}}
     ]
 }
 
-### Add all scopes and roles inheritance for MS Graph
+### Set all Graph scopes and roles as inheritanble
 # @name allowGraphPermissionsInheritance
 POST https://graph.microsoft.com/v1.0/applications/microsoft.graph.agentIdentityBlueprint/{{blueprintAppId}}/inheritablePermissions
 Content-Type: application/json
@@ -177,6 +178,13 @@ Authorization: Bearer {{login.response.body.access_token}}
 # @name getPermissionGrantsForBlueprintPrincipal
 GET https://graph.microsoft.com/v1.0/servicePrincipals/{{listServicePrincipal4Blueprint.response.body.value[0].id}}/oauth2PermissionGrants
 Authorization: Bearer {{login.response.body.access_token}}
+# IMPORTANT: the above call will initially list no permissions even though they were created earlier on.
+# This is because they have not been consent to.
+# You must execute the consentToBlueprintPermissions.ps1 script
+# Get the blueprint app id from the portal or from the listBlueprints call above and pass it to the script to consent to the permissions for the blueprint principal.
+# Note that authentication may open UI that is hidden behin this UI. You may need to switch to the browser window that is opened by the script to complete the consent process.
+# You can ignore the "Try that again using a different browser" message that may appear in the console. The script will complete the consent process and return to the console when done.
+
 
 ###====================== CREDENTIALS ===========================================================
 # Create credentials for this app so it can login to create agents from this client (Needs Application.ReadWrite.OwnedBy)
@@ -186,6 +194,7 @@ Authorization: Bearer {{login.response.body.access_token}}
 # app when using it without Managed Identity support (e.g. when running locally). 
 # (I usually save it in the .env file as BLUEPRINT_PWD_CREDENTIAL so I can use in multiple runs
 # and in the web app if I run it locally or without Managed Identity.)
+# IMPORTANT: save the created secretText from the response in the .env file to use in future runs as it exists during this run.
 # @name createBlueprintPasswordCredential
 POST https://graph.microsoft.com/v1.0/applications/{{blueprintId}}/addPassword
 OData-Version: 4.0
@@ -236,8 +245,6 @@ Authorization: Bearer {{login.response.body.access_token}}
     ]
 }
 
-# IMPORTANT: save the created secretText from the response in the .env file to use in future runs as it exists during this run.
-
 ###
 # @name listFederatedIdentityCredentials
 GET https://graph.microsoft.com/v1.0/applications/{{blueprintId}}/federatedIdentityCredentials
@@ -257,17 +264,19 @@ Authorization: Bearer {{login.response.body.access_token}}
 POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
 Content-Type: application/x-www-form-urlencoded
 
-client_id={{blueprintAppId}}&client_secret={{$dotenv BLEPRINTV2_PWD_CREDENTIAL}}&scope=https://graph.microsoft.com/.default&grant_type=client_credentials
+client_id={{blueprintAppId}}&client_secret={{$dotenv BLUEPRINT_PWD_CREDENTIAL}}&scope=https://graph.microsoft.com/.default&grant_type=client_credentials
 
 ###
 # Create agent; must be blueprint app; CreateAsManager permission was not assigned!
+# Note that the created agent's object id and app id are the same.
+# The agent's object id can be used to assign additional permissions to the agent if needed.
 # @name createAgent
 POST https://graph.microsoft.com/v1.0/servicePrincipals/microsoft.graph.agentIdentity
 Content-Type: application/json
 Authorization: Bearer {{blueprintLogin.response.body.access_token}}
 
 {
-  "displayName": "Agent 001 for Blueprint V6",
+  "displayName": "Agent 001 for \"{{blueprintName}}\"",
   "agentIdentityBlueprintId": "{{blueprintAppId}}",
   "sponsors@odata.bind": [
     "https://graph.microsoft.com/v1.0/users/{{$dotenv USER_OBJECT_ID}}"
