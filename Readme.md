@@ -7,8 +7,7 @@ These samples show:
 
 1. Graph http calls needed to [create Entra Agent ID artifacts](AgentSetup): blueprints, agent identities and agent users. They expose what toolkits and tools do behind the scene to manage Agent ID data (e.g. [Entra PowerShell moule](https://www.bing.com/ck/a?!&&p=9bd44f49cda3b03ccf72b8552f66a2cba0749c3e542743a57245f0ab9f5a6129JmltdHM9MTc5MDU1MzYwMA&ptn=3&ver=2&hsh=4&fclid=1bab2b94-1c66-6d98-0e9a-3d7a1da16c87&psq=entra+powershell+module&u=a1aHR0cHM6Ly9sZWFybi5taWNyb3NvZnQuY29tL2VuLXVzL3Bvd2Vyc2hlbGwvZW50cmEtcG93ZXJzaGVsbC9pbnN0YWxsYXRpb24_dmlldz1lbnRyYS1wb3dlcnNoZWxs))
 
-2. A simple [web application](Operation) obtaining OAuth2 tokens for agents. Again, the application exposes the raw https calls needed for that purpose. Deployed version of this app [can be accessed here](https://mragenttokens.azurewebsites.net/). However, it requires authentication with my tenant to actualy request and display tokens. The UI shows
-what inputs it would use and the syntax of the token requests.
+2. A simple [web application](Operation) obtaining OAuth2 tokens for agents. Again, the application shows the sequences of the raw https calls needed to acquire tokens using the various OAuth2 flows (client creds for an autonomous agent, OBO for an agent executing on behalf of a user and impersonation of a user by an agent). 
 
 Hopefully, the use of low-level http calls will help the user to better understand how the Agent ID operates even if in production systems these are embedded in Microsoft or 3rd party tools or toolkits. 
 
