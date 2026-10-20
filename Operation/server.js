@@ -73,6 +73,7 @@ app.get("/api/config", (_req, res) => {
     managedIdentityId: process.env.MI_CLIENT_ID   || "",
     blueprintAppId:    process.env.BLUEPRINT_APP_ID  || "",
     agentAppId:        process.env.AGENT_APP_ID      || "",
+    hostingAppId:      process.env.HOSTING_APP_ID    || "",
     miObjectId:        process.env.MI_OBJECT_ID      || "",
     hostingAppSecret:  process.env.HOSTING_APP_SECRET || "",
     agentUserUpn:      process.env.AGENT_USER_UPN    || "",

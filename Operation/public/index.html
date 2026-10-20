@@ -278,6 +278,11 @@
           </div>
         </div>
 
+        <div id="step4ConsentNote" style="margin-bottom:14px">
+          <p style="margin:0 0 6px">If the above call results in a lack of consent error, please make the following browser request and repeat the above call:</p>
+          <div id="step4ConsentUrl" class="url-box">Enter Tenant ID and BLUEPRINT_APP_ID above.</div>
+        </div>
+
         <h3 style="font-size:14px;margin:0 0 8px;border-top:1px solid var(--border);padding-top:12px">Step 4b — OBO Call 2 — Acquire agent token using access_as_user token</h3>
         <label>POST URL</label>
         <div id="step4Url" class="url-box">Resolving...</div>
@@ -364,6 +369,7 @@
       const inStep2ClientSecret  = $("step2ClientSecret");
 
       let resolvedEndpoint    = "";
+      let hostingAppId        = ""; // HOSTING_APP_ID — client id of the hosting app registration (EasyAuth)
       let step1Assertion      = "";
       let step2BlueprintToken = "";
       let step3AgentToken     = "";
@@ -448,7 +454,7 @@
       }
 
       [inManagedIdentityId, inBlueprintAppId, inTenantId, inAgentAppId].forEach(el => {
-        el.addEventListener("input", () => { buildStep1Url(); buildStep2Preview(); buildStep3Preview(); buildStep4Obo1Preview(); buildStep4Preview(); buildStep5aPreview(); buildStep5bPreview(); });
+        el.addEventListener("input", () => { buildStep1Url(); buildStep2Preview(); buildStep3Preview(); buildStep4Obo1Preview(); buildStep4ConsentUrl(); buildStep4Preview(); buildStep5aPreview(); buildStep5bPreview(); });
       });
 
       inHostingAppSecret.addEventListener("input", () => { buildStep4Obo1Preview(); });
@@ -469,12 +475,14 @@
           inAgentAppId.value     = d.agentAppId;
           $('miObjectId').value     = d.miObjectId;
           inTenantId.value          = d.tenantId;
+          hostingAppId              = d.hostingAppId || "";
           if (d.hostingAppSecret) inHostingAppSecret.value = d.hostingAppSecret;
           if (d.agentUserUpn) $('step5Username').value = d.agentUserUpn;
           buildStep1Url();
           buildStep2Preview();
           buildStep3Preview();
           buildStep4Obo1Preview();
+          buildStep4ConsentUrl();
           buildStep4Preview();
           buildStep5aPreview();
           buildStep5bPreview();
@@ -695,6 +703,32 @@
           "&scope=api://" + (bid || "<blueprintAppId>") + "/access_as_user"
         ];
         $("step4Obo1Body").textContent = bodyLines.join("\n");
+      }
+
+      // Admin-consent browser request for the blueprint's access_as_user scope, needed once if OBO
+      // Call 1 fails with a lack-of-consent error (AADSTS65001).
+      function buildStep4ConsentUrl() {
+        const tid = inTenantId.value.trim();
+        const bid = inBlueprintAppId.value.trim();
+        const box = $("step4ConsentUrl");
+        if (!tid || !bid) { box.textContent = "Enter Tenant ID and BLUEPRINT_APP_ID above."; return; }
+        const redirectUri = window.location.origin + "/.auth/login/aad/callback";
+        const params = new URLSearchParams({
+          client_id:     hostingAppId || "<hostingAppId — set HOSTING_APP_ID>",
+          response_type: "code",
+          redirect_uri:  redirectUri,
+          scope:         "api://" + bid + "/access_as_user",
+          prompt:        "consent",
+          state:         "abc"
+        });
+        const url = "https://login.microsoftonline.com/" + tid + "/oauth2/v2.0/authorize?" + params.toString();
+        box.innerHTML = "";
+        const link = document.createElement("a");
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = url;
+        box.appendChild(link);
       }
 
       function buildStep4Preview() {
