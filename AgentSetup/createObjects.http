@@ -9,6 +9,8 @@
 @agentId        = {{listAgentsForBlueprint.response.body.value[0].id}}
 @blueprintName  = "Sample Blueprint V1"
 
+@agentUserName = agentUser@{{$dotenv DOMAIN_NAME}}
+
 ###
 # @name login
 POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
@@ -297,6 +299,21 @@ Authorization: Bearer {{blueprintLogin.response.body.access_token}}
 # @name listAgentsForBlueprint
 GET https://graph.microsoft.com/v1.0/servicePrincipals/microsoft.graph.agentIdentity?$filter=agentIdentityBlueprintId eq '{{blueprintId}}'
 Authorization: Bearer {{login.response.body.access_token}}
+
+### ----------------------------------------------------------------------------
+# AgentUser is a user that is created for the agent to use when it needs to access resources on behalf of a user. The agent user is created with the same app roles and permissions as defined in the blueprint. The agent user is also assigned to the same sponsors as the blueprint. The agent user has a service principal created for it, which can be used to assign additional permissions to the agent user if needed.
+# @name createAgentUser
+POST https://graph.microsoft.com/v1.0/users/microsoft.graph.agentUser
+Authorization: Bearer {{login.response.body.access_token}}
+Content-type: application/json
+
+{
+  "accountEnabled": true,
+  "displayName": "Sales Agent",
+  "mailNickname": "SalesAgent",
+  "userPrincipalName": "{{agentUserName}}",
+  "identityParentId": "{{listAgentsForBlueprint.response.body.value[0].id}}"
+}
 
 ### -------------------------------------------------------------------------------
 ### Cleanup
