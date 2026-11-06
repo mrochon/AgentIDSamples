@@ -4,9 +4,9 @@
 # https://learn.microsoft.com/en-us/powershell/module/microsoft.entra.applications/?view=entra-powershell has the PowerShell commands
 
 ###
-@blueprintId    = {{listBlueprints.response.body.value[0].id}}
-@blueprintAppId = {{listBlueprints.response.body.value[0].appId}}
-@agentId        = {{listAgentsForBlueprint.response.body.value[0].id}}
+@blueprintId    = {{listBlueprints.response.body.value[2].id}}
+@blueprintAppId = {{listBlueprints.response.body.value[2].appId}}
+@agentId        = {{listAgentsForBlueprint.response.body.value[2].id}}
 @blueprintName  = "Sample Blueprint V1"
 
 @agentUserName = agentUser@{{$dotenv DOMAIN_NAME}}
@@ -314,6 +314,143 @@ Content-type: application/json
   "userPrincipalName": "{{agentUserName}}",
   "identityParentId": "{{listAgentsForBlueprint.response.body.value[0].id}}"
 }
+
+### -------------------------------------------------------------------------------
+###       Operate on M365 Agent Registry
+# @name loginAgentOperator
+POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id={{$dotenv M365_CLIENT_ID}}&
+client_secret={{$dotenv M365_CLIENT_SECRET}}&
+scope=https://graph.microsoft.com/.default&grant_type=client_credentials
+
+### -------------------------------
+### Try listing agents using copilotPackages. Does not list thos registered with agentRegistration API. select does not work
+# https://graph.microsoft.com/beta/copilot/admin/catalog/packages?$filter=lastModifiedDateTime ge 2026-11-03T08:00Z&select=displayName
+# @name listCopilotPackages
+GET https://graph.microsoft.com/beta/copilot/admin/catalog/packages?$filter=lastModifiedDateTime ge 2026-11-03T08:00Z&select=displayName
+Authorization: Bearer {{loginAgentOperator.response.body.access_token}}
+
+###
+# https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/api/admin-settings/agent-registration/agentregistration-create
+# @name registerAgent
+POST https://graph.microsoft.com/beta/copilot/agentRegistrations
+Authorization: Bearer {{loginAgentOperator.response.body.access_token}}
+Content-Type: application/json
+
+{
+    "id": "89f6f77f-8258-4659-8e57-f224dcef5035",
+    "displayName": "MR agent created using Graph agentRegistration V5",
+    "sourceCreatedDateTime": "2024-06-05T12:00:00Z",
+    "sourceModifiedDateTime": "2024-06-05T12:00:00Z",
+    "originatingStore": "customAgentStore",
+    "createdBy": "{{$dotenv USER_OBJECT_ID}}",
+    "ownerIds": ["{{$dotenv USER_OBJECT_ID}}"],
+    "sourceAgentId": "mr-graph-agentRegistration-005",
+    "description": "This agent helps users with Microsoft Graph beta APIs. It can construct the http calls and their payloads for any entity handled by MS Graph.",
+}
+
+###
+# @name registerAgent2
+POST https://graph.microsoft.com/beta/copilot/agentRegistrations
+Authorization: Bearer {{loginAgentOperator.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "id": "b62f74ff-6ceb-4f19-9121-b00a8ac435f9",
+  "displayName": "MR Test Agent 2",
+  "description": "Tests various Microsoft Graph APIs for security threats. Uses the email blueprint so we can send info to users. Only privileged users may receive this info.",
+  "ownerIds": ["c1c336ff-9cfb-4515-9552-6b44b7340d57"],
+  "createdBy": "c1c336ff-9cfb-4515-9552-6b44b7340d57",
+  "sourceCreatedDateTime": "2026-11-06T04:46:57.819Z",
+  "sourceLastModifiedDateTime": "2026-11-06T04:46:57.819Z",
+  "lastPublishedBy": "c1c336ff-9cfb-4515-9552-6b44b7340d57",
+  "sourceAgentId": "01HZQK3P8EMXR9V7T5N2W4J6C0",
+  "originatingStore": "mrCustomStore",
+"agentCard": {
+    "name": "MR Test Agent 2",
+    "agent_id": "01HZQK3P8EMXR9V7T5N2W4J6C0",
+    "version": "1.0.0",
+    "capabilities": [
+      {
+        "id": "text.generate",
+        "description": "Generate text given a prompt"
+      }
+    ],
+    "endpoint": {
+      "protocol": "http",
+      "url": "https://agent.example.com/api"
+    },
+    "description": "Tests various Microsoft Graph APIs for security threats. Uses the email blueprint so we can send info to users. Only privileged users may receive this info.",
+    "default_input_modes": [
+      "text/plain"
+    ],
+    "default_output_modes": [
+      "text/plain"
+    ],
+    "supported_interfaces": [
+      {
+        "protocol_binding": "JSONRPC",
+        "url": "http://127.0.0.1:9999",
+        "protocol_version": "1.0"
+      }
+    ],
+    "skills": [
+      {
+        "id": "echo_bot",
+        "name": "Echo Bot",
+        "description": "An example agent that acknowledges client request and responds with a \"Hello World\" message.",
+        "input_modes": [
+          "text/plain"
+        ],
+        "output_modes": [
+          "text/plain"
+        ],
+        "tags": [
+          "a2a",
+          "echo-example"
+        ],
+        "examples": [
+          "hi",
+          "how are you"
+        ]
+      }
+    ]  
+}
+}
+
+###
+# @name deleteAgentRegistration
+DELETE https://graph.microsoft.com/beta/copilot/agentRegistrations/72daecae-1836-4f8a-8699-d23e69223089
+Authorization: Bearer {{loginAgentOperator.response.body.access_token}}
+
+###
+# @name getAgentRegistration
+GET https://graph.microsoft.com/beta/copilot/agentRegistrations/72daecae-1836-4f8a-8699-d23e69223089
+Authorization: Bearer {{loginAgentOperator.response.body.access_token}}
+Accept: application/json
+
+### DOES not list those created above
+# @name listAllAgents
+GET GET https://graph.microsoft.com/beta/copilot/agentRegistrations
+Authorization: Bearer {{loginAgentOperator.response.body.access_token}}
+Accept: application/json
+
+### Computer Info Agent registration id=T_96bb6e5d-8d5f-c7e6-c673-39af53e36f43
+# @name updateAgentRegistration
+PATCH https://graph.microsoft.com/beta/copilot/agentRegistrations/mr-graph-agentRegistration-003
+Authorization: Bearer {{loginAgentOperator.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "description": "Updated to include both V1 and beta Graph. This agent was created using the Microsoft Graph API for research purposes.",
+}
+
+###
+# @name deleteAgentRegistration
+DELETE https://graph.microsoft.com/beta/copilot/agentRegistrations/{{registerAgent.response.body.id}}
+Authorization: Bearer {{loginAgentOperator.response.body.access_token}}
 
 ### -------------------------------------------------------------------------------
 ### Cleanup
