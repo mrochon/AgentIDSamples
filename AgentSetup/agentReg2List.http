@@ -1,0 +1,60 @@
+### -------------------------------------------------------------------------------
+###       Operate on M365 Agent Registry
+# @name loginAgentOperator
+POST https://login.microsoftonline.com/{{$dotenv TENANT_ID}}/oauth2/v2.0/token
+Content-Type: application/x-www-form-urlencoded
+
+client_id={{$dotenv M365_CLIENT_ID}}&
+client_secret={{$dotenv M365_CLIENT_SECRET}}&
+scope=https://graph.microsoft.com/.default&grant_type=client_credentials
+
+###
+# https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/api/admin-settings/agent-registration/agentregistration-create
+# @name registerAgent
+POST https://graph.microsoft.com/beta/copilot/agentRegistrations
+Authorization: Bearer {{loginAgentOperator.response.body.access_token}}
+Content-Type: application/json
+
+{
+    "id": "89f6f77f-8258-4659-8e57-f224dcef5038",
+    "sourceAgentId": "mr-graph-agentRegistration-008",
+    "displayName": "MR agent created using Graph agentRegistration V8",
+    "sourceCreatedDateTime": "2024-06-05T12:00:00Z",
+    "sourceModifiedDateTime": "2024-06-05T12:00:00Z",
+    "originatingStore": "customAgentStore",
+    "createdBy": "{{$dotenv USER_OBJECT_ID}}",
+    "ownerIds": ["{{$dotenv USER_OBJECT_ID}}"],
+    "description": "This agent helps users with Microsoft Graph beta APIs. It can construct the http calls and their payloads for any entity handled by MS Graph.",
+}
+
+###
+# @name getAgentRegistration
+GET https://graph.microsoft.com/beta/copilot/agentRegistrations/{{registerAgent.response.body.id}}
+Authorization: Bearer {{loginAgentOperator.response.body.access_token}}
+Accept: application/json
+
+### -------------------------------
+### Try listing agents using copilotPackages. Does not list thos registered with agentRegistration API. select does not work
+# https://graph.microsoft.com/beta/copilot/admin/catalog/packages?$filter=lastModifiedDateTime ge 2026-11-03T08:00Z&select=displayName
+###
+# name listCopilotPackages
+GET https://graph.microsoft.com/beta/copilot/admin/catalog/packages?$filter=lastModifiedDateTime ge 2026-11-14T08:00Z&
+Authorization: Bearer {{loginAgentOperator.response.body.access_token}}
+
+###
+# @name listAllAgents
+GET https://graph.microsoft.com/beta/copilot/agentRegistrations
+Authorization: Bearer {{loginAgentOperator.response.body.access_token}}
+Accept: application/json
+
+###
+# @name deleteAgentRegistration
+DELETE https://graph.microsoft.com/beta/copilot/agentRegistrations/{{registerAgent.response.body.id}}
+Authorization: Bearer {{loginAgentOperator.response.body.access_token}}
+
+###
+# @name getAgentRegistration2
+GET https://graph.microsoft.com/beta/copilot/agentRegistrations?$filter=displayName eq 'MR agent created using Graph agentRegistration V6'
+Authorization: Bearer {{loginAgentOperator.response.body.access_token}}
+Accept: application/json
+

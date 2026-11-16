@@ -431,6 +431,12 @@ GET https://graph.microsoft.com/beta/copilot/agentRegistrations/72daecae-1836-4f
 Authorization: Bearer {{loginAgentOperator.response.body.access_token}}
 Accept: application/json
 
+###
+# @name getAgentRegistration2
+GET https://graph.microsoft.com/beta/copilot/agentRegistrations?$filter=agentIdentityId eq '37fda4a4-4a5d-4b18-89e9-3a2f3963bf47'
+Authorization: Bearer {{loginAgentOperator.response.body.access_token}}
+Accept: application/json
+
 ### DOES not list those created above
 # @name listAllAgents
 GET GET https://graph.microsoft.com/beta/copilot/agentRegistrations
